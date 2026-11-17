@@ -1,0 +1,38 @@
+tabela: gold_biometric_attempts
+camada: gold
+status: published
+descricao: Distribuição analítica e curva de acúmulo de tentativas de habilitação
+  biométrica do eleitor por UF e turno.
+grao: Um número ordinal de tentativa biométrica (1, 2, 3, 4+) por turno e UF.
+chaves_naturais:
+- turn
+- uf
+- biometric_attempt_num
+particionamento: Arquivo único Parquet ZSTD.
+salvaguardas_privacidade: Métricas biométricas operacionais sumarizadas sem dados
+  de eleitores.
+colunas:
+- nome: turn
+  tipo_kaggle: integer
+  descricao: Turno eleitoral (1 ou 2).
+- nome: uf
+  tipo_kaggle: string
+  descricao: Sigla da Unidade Federativa.
+- nome: biometric_attempt_num
+  tipo_kaggle: integer
+  descricao: Número ordinal da tentativa de leitura biométrica (1..4+).
+- nome: attempt_count
+  tipo_kaggle: integer
+  descricao: Total de vezes que este número ordinal de tentativa ocorreu.
+- nome: total_attempts_uf
+  tipo_kaggle: integer
+  descricao: Total acumulado de leituras biométricas na UF e turno.
+- nome: percentage
+  tipo_kaggle: number
+  descricao: Proporção percentual desta tentativa sobre o total da UF.
+- nome: cumulative_count
+  tipo_kaggle: integer
+  descricao: Contagem acumulada até esta tentativa.
+- nome: cumulative_share
+  tipo_kaggle: number
+  descricao: Percentual acumulado de resolução biométrica até esta tentativa.

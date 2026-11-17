@@ -12,6 +12,9 @@
     "daniellmattos/tse-analysis-eleicoes-2026"
   ],
   "competition_sources": [],
-  "kernel_sources": [],
+  "kernel_sources": [
+    "daniellmattos/tse-analysis-05-silver-fact-urna-event",
+    "daniellmattos/tse-analysis-06-silver-fact-voting-session"
+  ],
   "model_sources": []
 }

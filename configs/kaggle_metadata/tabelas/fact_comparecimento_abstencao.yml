@@ -1,0 +1,39 @@
+tabela: fact_comparecimento_abstencao
+camada: bronze
+status: published
+descricao: Estatísticas demográficas do Sistema ELO sobre comparecimento e abstenção
+  por perfil e município/zona.
+grao: Agregação sociodemográfica de comparecimento por município e zona.
+chaves_naturais:
+- ANO_ELEICAO
+- NR_TURNO
+- SG_UF
+- CD_MUNICIPIO
+- NR_ZONA
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Estatísticas agregadas de eleitorado sem identificação individual.
+colunas:
+- nome: ANO_ELEICAO
+  tipo_kaggle: integer
+  descricao: Ano eleitoral.
+- nome: NR_TURNO
+  tipo_kaggle: integer
+  descricao: Turno eleitoral.
+- nome: SG_UF
+  tipo_kaggle: string
+  descricao: Sigla da Unidade Federativa.
+- nome: CD_MUNICIPIO
+  tipo_kaggle: integer
+  descricao: Código TSE do município.
+- nome: NR_ZONA
+  tipo_kaggle: integer
+  descricao: Zona eleitoral.
+- nome: QT_APTOS
+  tipo_kaggle: integer
+  descricao: Eleitores aptos na agregação.
+- nome: QT_COMPARECIMENTO
+  tipo_kaggle: integer
+  descricao: Eleitores que compareceram.
+- nome: QT_ABSTENCAO
+  tipo_kaggle: integer
+  descricao: Eleitores ausentes (abstenção).

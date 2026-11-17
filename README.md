@@ -64,7 +64,9 @@ Todos os notebooks são autocontidos, idempotentes e executados remotamente em K
 
 ## 3. Execução e Atualização via Kaggle CLI
 
-A execução de ponta a ponta e a publicação de versões ocorrem exclusivamente no Kaggle:
+A execução de ponta a ponta e a publicação de versões ocorrem exclusivamente no Kaggle.
+
+> **Não use** `kaggle datasets version ... --dir-mode zip` neste dataset: ele compacta cada pasta em `.zip`, destrói a estrutura Hive (`election_year=/turn=/uf=`) e remove a navegação de arquivos e colunas no Kaggle. Novas versões de dados devem preservar a árvore de arquivos (procedimento em validação).
 
 ```bash
 # 1. Executar notebook individual via Kaggle CLI
@@ -77,11 +79,8 @@ cd notebooks/09_release_pipeline
 kaggle kernels push -p .
 kaggle kernels status daniellmattos/tse-analysis-09-release-pipeline
 
-# 3. Publicar nova versão do dataset multi-camada no Kaggle
-kaggle datasets version \
-  -p /kaggle/working/exports \
-  -m "Release v1.0.0: Bronze auditada, Silver (eventos, sessões, dimensões) e Gold (métricas analíticas)" \
-  --dir-mode zip
+# 3. Atualizar SOMENTE os metadados do dataset (sem reenviar os dados)
+kaggle datasets metadata --update -p <pasta_com_dataset-metadata.json> <dono>/<dataset>
 ```
 
 ---

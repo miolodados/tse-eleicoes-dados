@@ -1,0 +1,37 @@
+# Descrição das camadas analíticas (Medallion Architecture) em pt-BR
+
+camadas:
+  bronze:
+    nome: "Camada Bronze (Ingestão Fiel & Higienizada)"
+    proposito: >
+      Espelha com fidelidade as fontes oficiais do Portal de Dados Abertos do TSE,
+      convertidas para formato Apache Parquet colunar de alta compressão (ZSTD nível 5).
+      Aplica estrita redação de PII (anonimização de MAC address e sequências numéricas
+      sensíveis) conforme salvaguardas de conformidade LGPD.
+    particionamento: "Hive padrão (election_year=YYYY/turn=T/uf=UF) quando aplicável."
+    formato: "Apache Parquet comprimido com Zstandard (ZSTD) nível 5."
+
+  silver:
+    nome: "Camada Silver (Conformada, Enriquecida & Semântica)"
+    proposito: >
+      Aplica regras de negócio determinísticas sobre a Bronze:
+      1) Parse semântico e categorização dos logs da urna eletrônica em eventos canônicos (fact_urna_event);
+      2) Reconstrução de sessões eleitorais via máquina de estados v1.0.0 (fact_voting_session);
+      3) Dimensões conformadas consolidadas (dim_election, dim_cargo, dim_partido).
+    garantias:
+      - "Zero PII garantido por catálogo semântico estrito."
+      - "Integridade referencial e unicidade de chaves primárias validadas."
+      - "Controle de versão de parsers e máquinas de estado em cada registro."
+
+  gold:
+    nome: "Camada Gold (Agregações Analíticas de Negócio)"
+    proposito: >
+      Tabelas analíticas pré-computadas otimizadas para consumo direto por ferramentas
+      de BI, dashboards (Streamlit, PowerBI) e pesquisadores eleitorais.
+      Permite responder a perguntas complexas sobre comportamento da urna,
+      distribuição de eventos e taxas de completude sem necessidade de processar
+      milhões de linhas brutas.
+    tabelas_principais:
+      - "gold_event_distribution: Frequência e proporção de cada evento por UF e turno."
+      - "gold_session_completeness: Taxa de sessões fechadas e estatísticas de ciclos de eleitores."
+      - "gold_biometric_attempts: Contagem e distribuição acumulada de tentativas biométricas."

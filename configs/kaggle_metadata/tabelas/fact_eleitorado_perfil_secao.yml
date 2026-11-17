@@ -1,0 +1,43 @@
+tabela: fact_eleitorado_perfil_secao
+camada: bronze
+status: published
+descricao: Perfil sociodemográfico detalhado do eleitorado (gênero, faixa etária,
+  escolaridade) por seção eleitoral.
+grao: Perfil demográfico agregado por seção eleitoral.
+chaves_naturais:
+- AA_ELEICAO
+- SG_UF
+- CD_MUNICIPIO
+- NR_ZONA
+- NR_SECAO
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Estatísticas agregadas de perfil demográfico; zero identificação
+  individual.
+colunas:
+- nome: AA_ELEICAO
+  tipo_kaggle: integer
+  descricao: Ano eleitoral.
+- nome: SG_UF
+  tipo_kaggle: string
+  descricao: Sigla da UF.
+- nome: CD_MUNICIPIO
+  tipo_kaggle: integer
+  descricao: Código TSE do município.
+- nome: NR_ZONA
+  tipo_kaggle: integer
+  descricao: Zona eleitoral.
+- nome: NR_SECAO
+  tipo_kaggle: integer
+  descricao: Seção eleitoral.
+- nome: DS_GENERO
+  tipo_kaggle: string
+  descricao: Gênero autodeclarado.
+- nome: DS_FAIXA_ETARIA
+  tipo_kaggle: string
+  descricao: Faixa etária do eleitor.
+- nome: DS_GRAU_ESCOLARIDADE
+  tipo_kaggle: string
+  descricao: Grau de instrução formal.
+- nome: QT_ELEITORES
+  tipo_kaggle: integer
+  descricao: Quantidade de eleitores na categoria.

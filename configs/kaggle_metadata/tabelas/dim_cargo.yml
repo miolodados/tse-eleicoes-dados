@@ -1,0 +1,17 @@
+tabela: dim_cargo
+camada: silver
+status: published
+descricao: Dimensão conformada de cargos eletivos da República Federativa do Brasil.
+grao: Um cargo eletivo em disputa.
+chaves_naturais:
+- cd_cargo
+particionamento: Não particionado (arquivo único Parquet).
+salvaguardas_privacidade: Tabela de domínio público irrestrito.
+colunas:
+- nome: cd_cargo
+  tipo_kaggle: integer
+  descricao: Código numérico oficial do cargo eletivo no TSE.
+- nome: ds_cargo
+  tipo_kaggle: string
+  descricao: Descrição textual do cargo eletivo (Presidente, Governador, Senador,
+    Deputado Federal, etc.).

@@ -1,0 +1,29 @@
+tabela: fact_eleitorado_perfil_munzona
+camada: bronze
+status: published
+descricao: Perfil sociodemográfico consolidado do eleitorado por município e zona
+  eleitoral.
+grao: Agregação demográfica por município e zona.
+chaves_naturais:
+- AA_ELEICAO
+- SG_UF
+- CD_MUNICIPIO
+- NR_ZONA
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Dados demográficos sumarizados.
+colunas:
+- nome: AA_ELEICAO
+  tipo_kaggle: integer
+  descricao: Ano eleitoral.
+- nome: SG_UF
+  tipo_kaggle: string
+  descricao: Sigla da UF.
+- nome: CD_MUNICIPIO
+  tipo_kaggle: integer
+  descricao: Código do município.
+- nome: NR_ZONA
+  tipo_kaggle: integer
+  descricao: Zona eleitoral.
+- nome: QT_ELEITORES
+  tipo_kaggle: integer
+  descricao: Quantidade de eleitores no perfil.

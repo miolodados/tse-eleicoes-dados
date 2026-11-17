@@ -1,0 +1,69 @@
+tabela: fact_urna_event
+camada: silver
+status: published
+descricao: Eventos semânticos e operacionais da urna eletrônica classificados deterministicamente
+  a partir de fact_urna_logs sem dados pessoais (zero PII).
+grao: Um evento operacional da urna eletrônica ordenado cronologicamente por timestamp
+  e sequência.
+chaves_naturais:
+- election_year
+- turn
+- uf
+- urna_serial
+- file_seq
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Totalmente livre de PII; mensagens de log filtradas por
+  catálogo estrito de eventos permitidos.
+colunas:
+- nome: election_year
+  tipo_kaggle: integer
+  descricao: Ano eleitoral oficial (2026).
+- nome: turn
+  tipo_kaggle: integer
+  descricao: Turno da eleição (1 ou 2).
+- nome: uf
+  tipo_kaggle: string
+  descricao: 'Sigla da Unidade Federativa (ex.: SP, RJ, DF, ZZ).'
+- nome: municipio_code
+  tipo_kaggle: integer
+  descricao: Código numérico oficial do município no TSE.
+- nome: zone_num
+  tipo_kaggle: integer
+  descricao: Número da zona eleitoral.
+- nome: section_num
+  tipo_kaggle: integer
+  descricao: Número da seção eleitoral.
+- nome: urna_serial
+  tipo_kaggle: string
+  descricao: Número de série identificador da urna eletrônica física.
+- nome: file_seq
+  tipo_kaggle: integer
+  descricao: Sequencial monotônico do evento dentro do arquivo de log da urna.
+- nome: raw_timestamp
+  tipo_kaggle: datetime
+  descricao: Data e hora com precisão de microssegundos registrada pelo sistema operacional
+    da urna.
+- nome: has_timestamp_regression
+  tipo_kaggle: boolean
+  descricao: Indicador booleano de anomalia ou regressão temporal em relação ao evento
+    anterior.
+- nome: application
+  tipo_kaggle: string
+  descricao: 'Nome do subsistema ou aplicativo interno da urna emissor do log (ex.:
+    VOTA, GAP, SCUE).'
+- nome: log_level
+  tipo_kaggle: string
+  descricao: Nível de severidade do registro de log (INFO, ALERTA, ERRO).
+- nome: event_code
+  tipo_kaggle: string
+  descricao: Código canônico do evento classificado segundo o catálogo formal do TSE.
+- nome: biometric_attempt_num
+  tipo_kaggle: integer
+  descricao: Número da tentativa de leitura biométrica do eleitor (1 a 4+) quando
+    aplicável.
+- nome: classification_status
+  tipo_kaggle: string
+  descricao: 'Status do parseamento: CLASSIFIED (reconhecido no catálogo) ou UNKNOWN.'
+- nome: parser_version
+  tipo_kaggle: string
+  descricao: Versão do parser semântico e do catálogo de eventos utilizado.

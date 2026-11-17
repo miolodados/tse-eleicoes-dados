@@ -1,0 +1,59 @@
+tabela: fact_detalhe_votacao_secao
+camada: bronze
+status: published
+descricao: Detalhe de comparecimento, votos nominais, votos em branco e nulos por
+  seção e cargo.
+grao: Totais de apuração por seção e cargo.
+chaves_naturais:
+- ANO_ELEICAO
+- NR_TURNO
+- SG_UF
+- CD_MUNICIPIO
+- NR_ZONA
+- NR_SECAO
+- CD_CARGO
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Dado público de apuração.
+colunas:
+- nome: ANO_ELEICAO
+  tipo_kaggle: integer
+  descricao: Ano eleitoral oficial.
+- nome: NR_TURNO
+  tipo_kaggle: integer
+  descricao: Turno eleitoral.
+- nome: SG_UF
+  tipo_kaggle: string
+  descricao: Sigla da Unidade Federativa.
+- nome: CD_MUNICIPIO
+  tipo_kaggle: integer
+  descricao: Código TSE do município.
+- nome: NR_ZONA
+  tipo_kaggle: integer
+  descricao: Zona eleitoral.
+- nome: NR_SECAO
+  tipo_kaggle: integer
+  descricao: Seção eleitoral.
+- nome: CD_CARGO
+  tipo_kaggle: integer
+  descricao: Código do cargo eletivo.
+- nome: QT_APTOS
+  tipo_kaggle: integer
+  descricao: Total de eleitores aptos.
+- nome: QT_COMPARECIMENTO
+  tipo_kaggle: integer
+  descricao: Total de eleitores que compareceram.
+- nome: QT_ABSTENCOES
+  tipo_kaggle: integer
+  descricao: Total de abstenções.
+- nome: QT_VOTOS_NOMINAIS
+  tipo_kaggle: integer
+  descricao: Total de votos válidos nominais.
+- nome: QT_VOTOS_BRANCOS
+  tipo_kaggle: integer
+  descricao: Total de votos em branco.
+- nome: QT_VOTOS_NULOS
+  tipo_kaggle: integer
+  descricao: Total de votos nulos.
+- nome: QT_VOTOS_LEGENDA
+  tipo_kaggle: integer
+  descricao: Total de votos de legenda.

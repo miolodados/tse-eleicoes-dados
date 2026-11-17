@@ -1,0 +1,30 @@
+# Configuração central de metadados do dataset no Kaggle (pt-BR)
+# Fonte da verdade para geração de dataset-metadata.json
+
+title: "TSE Eleições 2026: Camadas Bronze, Silver e Gold"
+subtitle: "Dados eleitorais oficiais estruturados em Parquet com DuckDB e Polars"
+slug: "daniellmattos/tse-analysis-eleicoes-2026"
+license: "CC-BY-SA-4.0"
+is_private: true
+expected_update_frequency: "never"
+
+keywords:
+  - "brazil"
+  - "politics"
+  - "tabular"
+  - "portuguese"
+
+collaborators:
+  - username: "miolodados"
+    role: "WRITER"
+
+provenance:
+  source_institution: "Tribunal Superior Eleitoral (TSE) — Portal de Dados Abertos"
+  official_portal: "https://dadosabertos.tse.jus.br"
+  curator: "Projeto de Engenharia de Dados Abertos Eleitorais (miolodados)"
+  repository: "https://github.com/miolodados/tse-eleicoes-dados"
+
+privacy_and_governance:
+  pii_policy: "Zero PII (Personally Identifiable Information). Endereços MAC, IPs e identificadores de eleitores são estritamente redigidos (<ID_REDACTED>) ou descartados na ingestão Bronze."
+  lgpd_compliance: "Total conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018) e resoluções normativas do TSE."
+  log_sample_notice: "A tabela fact_urna_logs é amostrada (amostra representativa com até 5 arquivos .jez por partição para viabilidade analítica) conforme docs/bronze_audit.md."

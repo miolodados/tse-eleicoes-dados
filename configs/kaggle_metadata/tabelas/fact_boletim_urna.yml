@@ -1,0 +1,63 @@
+tabela: fact_boletim_urna
+camada: bronze
+status: published
+descricao: Boletim de Urna (BU) oficial consolidado pelo TSE por seção, turno, cargo
+  e opção de voto.
+grao: Votação apurada por seção eleitoral, cargo/pergunta e opção votável.
+chaves_naturais:
+- ANO_ELEICAO
+- NR_TURNO
+- SG_UF
+- CD_MUNICIPIO
+- NR_ZONA
+- NR_SECAO
+- CD_CARGO_PERGUNTA
+- NR_VOTAVEL
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Dado público oficial de apuração sem dados pessoais.
+colunas:
+- nome: ANO_ELEICAO
+  tipo_kaggle: integer
+  descricao: Ano eleitoral oficial.
+- nome: NR_TURNO
+  tipo_kaggle: integer
+  descricao: Número do turno eleitoral.
+- nome: SG_UF
+  tipo_kaggle: string
+  descricao: Sigla da Unidade Federativa.
+- nome: CD_MUNICIPIO
+  tipo_kaggle: integer
+  descricao: Código TSE do município.
+- nome: NM_MUNICIPIO
+  tipo_kaggle: string
+  descricao: Nome oficial do município.
+- nome: NR_ZONA
+  tipo_kaggle: integer
+  descricao: Número da zona eleitoral.
+- nome: NR_SECAO
+  tipo_kaggle: integer
+  descricao: Número da seção eleitoral.
+- nome: CD_CARGO_PERGUNTA
+  tipo_kaggle: integer
+  descricao: Código do cargo em disputa ou pergunta de consulta.
+- nome: DS_CARGO_PERGUNTA
+  tipo_kaggle: string
+  descricao: Descrição do cargo em disputa ou consulta.
+- nome: NR_VOTAVEL
+  tipo_kaggle: integer
+  descricao: Número do candidato, partido ou código de voto em branco/nulo.
+- nome: NM_VOTAVEL
+  tipo_kaggle: string
+  descricao: Nome do candidato ou opção de voto.
+- nome: QT_VOTOS
+  tipo_kaggle: integer
+  descricao: Quantidade de votos recebidos pela opção na urna.
+- nome: QT_APTOS
+  tipo_kaggle: integer
+  descricao: Quantidade de eleitores aptos a votar na seção.
+- nome: QT_COMPARECIMENTO
+  tipo_kaggle: integer
+  descricao: Quantidade de eleitores que compareceram à seção.
+- nome: QT_ABSTENCOES
+  tipo_kaggle: integer
+  descricao: Quantidade de eleitores que se abstiveram na seção.

@@ -1,0 +1,53 @@
+tabela: fact_votacao_secao
+camada: bronze
+status: published
+descricao: Votação nominal e de legenda por seção eleitoral, município e cargo.
+grao: Votos computados por seção, cargo e candidato/legenda.
+chaves_naturais:
+- ANO_ELEICAO
+- NR_TURNO
+- SG_UF
+- CD_MUNICIPIO
+- NR_ZONA
+- NR_SECAO
+- CD_CARGO
+- NR_VOTAVEL
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Dado público consolidado oficial.
+colunas:
+- nome: ANO_ELEICAO
+  tipo_kaggle: integer
+  descricao: Ano eleitoral oficial.
+- nome: NR_TURNO
+  tipo_kaggle: integer
+  descricao: Turno eleitoral (1 ou 2).
+- nome: SG_UF
+  tipo_kaggle: string
+  descricao: Sigla da Unidade Federativa.
+- nome: CD_MUNICIPIO
+  tipo_kaggle: integer
+  descricao: Código TSE do município.
+- nome: NM_MUNICIPIO
+  tipo_kaggle: string
+  descricao: Nome do município.
+- nome: NR_ZONA
+  tipo_kaggle: integer
+  descricao: Número da zona eleitoral.
+- nome: NR_SECAO
+  tipo_kaggle: integer
+  descricao: Número da seção eleitoral.
+- nome: CD_CARGO
+  tipo_kaggle: integer
+  descricao: Código numérico do cargo em disputa.
+- nome: DS_CARGO
+  tipo_kaggle: string
+  descricao: Descrição do cargo em disputa.
+- nome: NR_VOTAVEL
+  tipo_kaggle: integer
+  descricao: Número do candidato ou legenda votada.
+- nome: NM_VOTAVEL
+  tipo_kaggle: string
+  descricao: Nome da opção votada.
+- nome: QT_VOTOS
+  tipo_kaggle: integer
+  descricao: Quantidade total de votos apurados.

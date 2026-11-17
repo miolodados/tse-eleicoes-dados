@@ -1,0 +1,29 @@
+tabela: dim_election
+camada: silver
+status: published
+descricao: Dimensão conformada de eleições, pleitos e turnos eleitorais.
+grao: Um turno eleitoral por ano.
+chaves_naturais:
+- election_year
+- turn
+particionamento: 'Hive: election_year=2026'
+salvaguardas_privacidade: Tabela de domínio público irrestrito.
+colunas:
+- nome: election_year
+  tipo_kaggle: integer
+  descricao: Ano eleitoral oficial (2026).
+- nome: turn
+  tipo_kaggle: integer
+  descricao: Turno eleitoral (1 ou 2).
+- nome: election_label
+  tipo_kaggle: string
+  descricao: 'Rótulo descritivo do pleito (ex.: Eleições Gerais 2026 - 1º Turno).'
+- nome: election_date_turn1
+  tipo_kaggle: date
+  descricao: Data oficial de realização do primeiro turno.
+- nome: election_date_turn2
+  tipo_kaggle: date
+  descricao: Data oficial de realização do segundo turno.
+- nome: cd_pleito_turn1
+  tipo_kaggle: integer
+  descricao: Código oficial do pleito TSE.

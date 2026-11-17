@@ -1,0 +1,43 @@
+tabela: fact_detalhe_votacao_munzona
+camada: bronze
+status: published
+descricao: Detalhe quantitativo de votação e comparecimento agregado por município
+  e zona eleitoral.
+grao: Totais de votos e comparecimento por município, zona e cargo.
+chaves_naturais:
+- ANO_ELEICAO
+- NR_TURNO
+- SG_UF
+- CD_MUNICIPIO
+- NR_ZONA
+- CD_CARGO
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Dado público de apuração oficial.
+colunas:
+- nome: ANO_ELEICAO
+  tipo_kaggle: integer
+  descricao: Ano eleitoral oficial.
+- nome: NR_TURNO
+  tipo_kaggle: integer
+  descricao: Turno eleitoral.
+- nome: SG_UF
+  tipo_kaggle: string
+  descricao: Sigla da Unidade Federativa.
+- nome: CD_MUNICIPIO
+  tipo_kaggle: integer
+  descricao: Código TSE do município.
+- nome: NR_ZONA
+  tipo_kaggle: integer
+  descricao: Zona eleitoral.
+- nome: CD_CARGO
+  tipo_kaggle: integer
+  descricao: Código do cargo em disputa.
+- nome: QT_APTOS
+  tipo_kaggle: integer
+  descricao: Total de eleitores aptos.
+- nome: QT_COMPARECIMENTO
+  tipo_kaggle: integer
+  descricao: Total de eleitores presentes.
+- nome: QT_ABSTENCOES
+  tipo_kaggle: integer
+  descricao: Total de abstenções.
