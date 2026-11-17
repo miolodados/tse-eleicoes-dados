@@ -1,0 +1,20 @@
+tabela: dim_partido
+camada: silver
+status: published
+descricao: Dimensão conformada de agremiações e partidos políticos com registro definitivo
+  no TSE.
+grao: Um partido político registrado.
+chaves_naturais:
+- cd_partido
+particionamento: Não particionado (arquivo único Parquet).
+salvaguardas_privacidade: Tabela de domínio público irrestrito.
+colunas:
+- nome: cd_partido
+  tipo_kaggle: integer
+  descricao: Número eleitoral oficial da legenda partidária.
+- nome: sg_partido
+  tipo_kaggle: string
+  descricao: Sigla oficial do partido político.
+- nome: nm_partido
+  tipo_kaggle: string
+  descricao: Razão social e nome completo da agremiação partidária.

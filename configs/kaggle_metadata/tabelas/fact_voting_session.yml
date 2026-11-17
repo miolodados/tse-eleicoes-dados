@@ -1,0 +1,68 @@
+tabela: fact_voting_session
+camada: silver
+status: published
+descricao: Sessões eleitorais reconstruídas via máquina de estados v1.0.0 a partir
+  dos eventos de cada urna em fact_urna_event.
+grao: Uma sessão eleitoral única por urna, seção, turno e ano.
+chaves_naturais:
+- election_year
+- turn
+- uf
+- municipio_code
+- zone_num
+- section_num
+- urna_serial
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Métricas agregadas a nível de sessão de votação sem identificadores
+  individuais.
+colunas:
+- nome: election_year
+  tipo_kaggle: integer
+  descricao: Ano eleitoral oficial (2026).
+- nome: turn
+  tipo_kaggle: integer
+  descricao: Turno da eleição (1 ou 2).
+- nome: uf
+  tipo_kaggle: string
+  descricao: Sigla da Unidade Federativa.
+- nome: municipio_code
+  tipo_kaggle: integer
+  descricao: Código TSE do município.
+- nome: zone_num
+  tipo_kaggle: integer
+  descricao: Número da zona eleitoral.
+- nome: section_num
+  tipo_kaggle: integer
+  descricao: Número da seção eleitoral.
+- nome: urna_serial
+  tipo_kaggle: string
+  descricao: Número de série da urna eletrônica.
+- nome: first_event_ts
+  tipo_kaggle: datetime
+  descricao: Timestamp do primeiro evento registrado na urna na jornada eleitoral.
+- nome: last_event_ts
+  tipo_kaggle: datetime
+  descricao: Timestamp do último evento registrado na urna na jornada eleitoral.
+- nome: final_state
+  tipo_kaggle: string
+  descricao: 'Estado terminal da máquina de estados: CLOSED (sessão encerrada regularmente)
+    ou INCOMPLETE.'
+- nome: is_complete
+  tipo_kaggle: boolean
+  descricao: Booleano que confirma encerramento formal da seção com emissão de zerésima
+    e BU.
+- nome: has_contingency
+  tipo_kaggle: boolean
+  descricao: Indica se a urna registrou algum procedimento de contingência ou intervenção
+    de suporte.
+- nome: voter_cycles
+  tipo_kaggle: integer
+  descricao: Quantidade total de ciclos completos de eleitores com voto computado
+    com sucesso.
+- nome: event_count
+  tipo_kaggle: integer
+  descricao: Quantidade total de linhas de eventos processadas para reconstrução da
+    sessão.
+- nome: state_machine_version
+  tipo_kaggle: string
+  descricao: Versão da especificação da máquina de estados determinística.

@@ -1,0 +1,36 @@
+tabela: fact_comparecimento_abstencao_pcd
+camada: bronze
+status: published
+descricao: Comparecimento e abstenção de eleitores com deficiência (PCD) por município
+  e zona.
+grao: Comparecimento de eleitores com deficiência por município e zona.
+chaves_naturais:
+- ANO_ELEICAO
+- NR_TURNO
+- SG_UF
+- CD_MUNICIPIO
+- NR_ZONA
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Métricas demográficas agregadas.
+colunas:
+- nome: ANO_ELEICAO
+  tipo_kaggle: integer
+  descricao: Ano eleitoral.
+- nome: NR_TURNO
+  tipo_kaggle: integer
+  descricao: Turno eleitoral.
+- nome: SG_UF
+  tipo_kaggle: string
+  descricao: Sigla da UF.
+- nome: CD_MUNICIPIO
+  tipo_kaggle: integer
+  descricao: Código do município.
+- nome: NR_ZONA
+  tipo_kaggle: integer
+  descricao: Zona eleitoral.
+- nome: QT_COMPARECIMENTO_DEFICIENCIA
+  tipo_kaggle: integer
+  descricao: Comparecimento de eleitores com deficiência.
+- nome: QT_ABSTENCAO_DEFICIENCIA
+  tipo_kaggle: integer
+  descricao: Abstenção de eleitores com deficiência.

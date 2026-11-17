@@ -1,0 +1,40 @@
+tabela: bridge_correspondencia_esperada
+camada: bronze
+status: published
+descricao: Correspondência esperada de carga entre urna eletrônica, flashcards e seção
+  eleitoral antes da eleição.
+grao: Par urna-seção planejado na cerimônia de carga.
+chaves_naturais:
+- AA_ELEICAO
+- NR_TURNO
+- SG_UF
+- CD_MUNICIPIO
+- NR_ZONA
+- NR_SECAO
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Dados de auditoria de hardware e preparação de eleições.
+colunas:
+- nome: AA_ELEICAO
+  tipo_kaggle: integer
+  descricao: Ano eleitoral.
+- nome: NR_TURNO
+  tipo_kaggle: integer
+  descricao: Turno eleitoral.
+- nome: SG_UF
+  tipo_kaggle: string
+  descricao: Sigla da UF.
+- nome: CD_MUNICIPIO
+  tipo_kaggle: integer
+  descricao: Código do município.
+- nome: NR_ZONA
+  tipo_kaggle: integer
+  descricao: Zona eleitoral.
+- nome: NR_SECAO
+  tipo_kaggle: integer
+  descricao: Seção eleitoral.
+- nome: NR_URNA_ESPERADA
+  tipo_kaggle: string
+  descricao: Número de série da urna esperada para a seção.
+- nome: CD_CARGA_URNA_ESPERADA
+  tipo_kaggle: string
+  descricao: Código de carga oficial da urna.

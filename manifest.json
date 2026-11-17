@@ -1,0 +1,219 @@
+{
+  "release_version": "1.0.0",
+  "dataset_slug": "daniellmattos/tse-analysis-eleicoes-2026",
+  "timestamp_utc": "2026-11-17T01:11:56.484162+00:00",
+  "generator_notebook": "09_release_pipeline.ipynb",
+  "kernel_versions": {
+    "01_urna_logs_poc": "1.0.0",
+    "02_ingest_electoral_tables": "1.0.0",
+    "03_ingest_urna_logs_batch": "1.0.0",
+    "04_dataset_integrity_and_release": "1.0.0",
+    "05_silver_fact_urna_event": "1.0.0",
+    "06_silver_fact_voting_session": "1.0.0",
+    "07_silver_dimensions": "1.0.0",
+    "08_gold_analytics": "1.0.0",
+    "09_release_pipeline": "1.0.0"
+  },
+  "parser_versions": {
+    "urna_logs_parser": "1.0.0",
+    "event_catalog": "1.0.0",
+    "state_machine": "1.0.0"
+  },
+  "layers": {
+    "bronze": {
+      "tables_registered": 18,
+      "tables_present": 11,
+      "total_rows": 267815348,
+      "tables": {
+        "fact_urna_logs": {
+          "status": "PRESENT_VALID",
+          "file_count": 56,
+          "row_count": 2132468,
+          "schema_ok": true
+        },
+        "fact_boletim_urna": {
+          "status": "PRESENT_VALID",
+          "file_count": 56,
+          "row_count": 69947081,
+          "schema_ok": true
+        },
+        "fact_votacao_secao": {
+          "status": "PRESENT_VALID",
+          "file_count": 35,
+          "row_count": 64232247,
+          "schema_ok": true
+        },
+        "fact_detalhe_votacao_secao": {
+          "status": "PRESENT_VALID",
+          "file_count": 33,
+          "row_count": 2031327,
+          "schema_ok": true
+        },
+        "fact_detalhe_votacao_munzona": {
+          "status": "PRESENT_VALID",
+          "file_count": 33,
+          "row_count": 24937,
+          "schema_ok": true
+        },
+        "dim_candidato_munzona": {
+          "status": "PRESENT_VALID",
+          "file_count": 33,
+          "row_count": 6660339,
+          "schema_ok": true
+        },
+        "dim_partido_munzona": {
+          "status": "PRESENT_VALID",
+          "file_count": 33,
+          "row_count": 394272,
+          "schema_ok": true
+        },
+        "dim_local_votacao_secao": {
+          "status": "PRESENT_VALID",
+          "file_count": 56,
+          "row_count": 1034358,
+          "schema_ok": true
+        },
+        "fact_eleitorado_perfil_secao": {
+          "status": "PRESENT_VALID",
+          "file_count": 28,
+          "row_count": 91015804,
+          "schema_ok": true
+        },
+        "fact_eleitorado_perfil_munzona": {
+          "status": "PRESENT_VALID",
+          "file_count": 28,
+          "row_count": 11046845,
+          "schema_ok": true
+        },
+        "fact_eleitorado_deficiencia": {
+          "status": "PRESENT_VALID",
+          "file_count": 28,
+          "row_count": 2179149,
+          "schema_ok": true
+        },
+        "fact_transferencia_temporaria_secao": {
+          "status": "SCHEMA_WARN",
+          "file_count": 54,
+          "row_count": 1154903,
+          "schema_ok": false
+        },
+        "fact_transferencia_temporaria_mun": {
+          "status": "SCHEMA_WARN",
+          "file_count": 54,
+          "row_count": 224511,
+          "schema_ok": false
+        },
+        "fact_comparecimento_abstencao": {
+          "status": "SCHEMA_WARN",
+          "file_count": 28,
+          "row_count": 11060908,
+          "schema_ok": false
+        },
+        "fact_comparecimento_abstencao_pcd": {
+          "status": "SCHEMA_WARN",
+          "file_count": 28,
+          "row_count": 2179149,
+          "schema_ok": false
+        },
+        "fact_comparecimento_abstencao_tte": {
+          "status": "SCHEMA_WARN",
+          "file_count": 27,
+          "row_count": 500281,
+          "schema_ok": false
+        },
+        "bridge_correspondencia_esperada": {
+          "status": "SCHEMA_WARN",
+          "file_count": 56,
+          "row_count": 998355,
+          "schema_ok": false
+        },
+        "bridge_correspondencia_efetivada": {
+          "status": "SCHEMA_WARN",
+          "file_count": 56,
+          "row_count": 998414,
+          "schema_ok": false
+        }
+      }
+    },
+    "silver": {
+      "tables_registered": 5,
+      "tables_present": 5,
+      "total_rows": 2132786,
+      "tables": {
+        "fact_urna_event": {
+          "status": "PRESENT_VALID",
+          "file_count": 56,
+          "row_count": 2132468,
+          "schema_ok": true
+        },
+        "fact_voting_session": {
+          "status": "PRESENT_VALID",
+          "file_count": 56,
+          "row_count": 280,
+          "schema_ok": true
+        },
+        "dim_election": {
+          "status": "PRESENT_VALID",
+          "file_count": 1,
+          "row_count": 2,
+          "schema_ok": true
+        },
+        "dim_cargo": {
+          "status": "PRESENT_VALID",
+          "file_count": 1,
+          "row_count": 6,
+          "schema_ok": true
+        },
+        "dim_partido": {
+          "status": "PRESENT_VALID",
+          "file_count": 1,
+          "row_count": 30,
+          "schema_ok": true
+        }
+      }
+    },
+    "gold": {
+      "tables_registered": 3,
+      "tables_present": 3,
+      "total_rows": 1058,
+      "tables": {
+        "gold_event_distribution": {
+          "status": "PRESENT_VALID",
+          "file_count": 1,
+          "row_count": 786,
+          "schema_ok": true
+        },
+        "gold_session_completeness": {
+          "status": "PRESENT_VALID",
+          "file_count": 1,
+          "row_count": 56,
+          "schema_ok": true
+        },
+        "gold_biometric_attempts": {
+          "status": "PRESENT_VALID",
+          "file_count": 1,
+          "row_count": 216,
+          "schema_ok": true
+        }
+      }
+    }
+  },
+  "summary": {
+    "total_layers": 3,
+    "total_tables_registered": 26,
+    "total_tables_present": 19,
+    "total_rows_verified": 269949192,
+    "publish_readiness": "READY_FOR_RELEASE",
+    "readiness_blockers": [],
+    "readiness_warnings": [
+      "bronze.fact_transferencia_temporaria_secao: SCHEMA_WARN",
+      "bronze.fact_transferencia_temporaria_mun: SCHEMA_WARN",
+      "bronze.fact_comparecimento_abstencao: SCHEMA_WARN",
+      "bronze.fact_comparecimento_abstencao_pcd: SCHEMA_WARN",
+      "bronze.fact_comparecimento_abstencao_tte: SCHEMA_WARN",
+      "bronze.bridge_correspondencia_esperada: SCHEMA_WARN",
+      "bronze.bridge_correspondencia_efetivada: SCHEMA_WARN"
+    ]
+  },
+  "manifest_sha256": "2d3560d0b05b03ec92c083cb8b14853e69baf1ff8469bcbea05e1b77264938a0"
+}

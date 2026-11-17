@@ -1,0 +1,33 @@
+tabela: fact_eleitorado_deficiencia
+camada: bronze
+status: published
+descricao: Estatísticas de eleitores com deficiência declarada e necessidades especiais
+  de acessibilidade por seção eleitoral.
+grao: Contagem de eleitores com deficiência por seção eleitoral.
+chaves_naturais:
+- AA_ELEICAO
+- SG_UF
+- CD_MUNICIPIO
+- NR_ZONA
+- NR_SECAO
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Agregações sem identificação individual.
+colunas:
+- nome: AA_ELEICAO
+  tipo_kaggle: integer
+  descricao: Ano eleitoral.
+- nome: SG_UF
+  tipo_kaggle: string
+  descricao: Sigla da UF.
+- nome: CD_MUNICIPIO
+  tipo_kaggle: integer
+  descricao: Código do município.
+- nome: NR_ZONA
+  tipo_kaggle: integer
+  descricao: Zona eleitoral.
+- nome: NR_SECAO
+  tipo_kaggle: integer
+  descricao: Seção eleitoral.
+- nome: QT_ELEITORES_DEFICIENCIA
+  tipo_kaggle: integer
+  descricao: Quantidade de eleitores com deficiência cadastrada.

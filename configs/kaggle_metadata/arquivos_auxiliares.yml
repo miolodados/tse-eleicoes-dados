@@ -1,0 +1,22 @@
+# Documentação dos arquivos auxiliares do acervo
+
+arquivos:
+  manifest.json:
+    descricao: "Manifesto formal de release contendo hashes SHA-256 de integridade, contagem de tabelas e linhas verificadas, versões de parsers e status de prontidão (publish_readiness)."
+    formato: "JSON"
+    finalidade: "Auditoria e governança de dados"
+
+  LEIAME.md:
+    descricao: "Guia introdutório em português para pesquisadores e cientistas de dados, com exemplos de consultas analíticas utilizando DuckDB e Polars."
+    formato: "Markdown"
+    finalidade: "Onboarding e documentação de uso rápido"
+
+  DICIONARIO_DE_DADOS.md:
+    descricao: "Dicionário de dados consolidado com descrição detalhada de todas as tabelas Bronze, Silver e Gold, tipos de dados, chaves primárias e relacionamentos."
+    formato: "Markdown"
+    finalidade: "Referência técnica de esquema"
+
+  sources.yml:
+    descricao: "Especificação canônica das fontes oficiais do TSE, mapeamento CKAN, URLs de pacotes de dados e políticas de integridade."
+    formato: "YAML"
+    finalidade: "Rastreabilidade e proveniência de dados"

@@ -1,0 +1,43 @@
+tabela: dim_candidato_munzona
+camada: bronze
+status: published
+descricao: Cadastro oficial de candidaturas deferidas e registradas no TSE por município
+  e zona.
+grao: Um candidato por município, zona e cargo.
+chaves_naturais:
+- ANO_ELEICAO
+- SG_UF
+- CD_MUNICIPIO
+- NR_ZONA
+- CD_CARGO
+- NR_CANDIDATO
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Dados de registro público eleitoral de candidatos.
+colunas:
+- nome: ANO_ELEICAO
+  tipo_kaggle: integer
+  descricao: Ano eleitoral.
+- nome: SG_UF
+  tipo_kaggle: string
+  descricao: Unidade Federativa.
+- nome: CD_MUNICIPIO
+  tipo_kaggle: integer
+  descricao: Código do município.
+- nome: NR_ZONA
+  tipo_kaggle: integer
+  descricao: Zona eleitoral.
+- nome: CD_CARGO
+  tipo_kaggle: integer
+  descricao: Cargo concorrido.
+- nome: NR_CANDIDATO
+  tipo_kaggle: integer
+  descricao: Número eleitoral do candidato na urna.
+- nome: NM_CANDIDATO
+  tipo_kaggle: string
+  descricao: Nome completo do candidato.
+- nome: NM_URNA_CANDIDATO
+  tipo_kaggle: string
+  descricao: Nome do candidato na urna eletrônica.
+- nome: SQ_CANDIDATO
+  tipo_kaggle: string
+  descricao: Sequencial único gerado pelo TSE.

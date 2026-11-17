@@ -1,0 +1,65 @@
+tabela: fact_urna_logs
+camada: bronze
+status: published
+descricao: Registros tabulados dos arquivos de log de transmissão da urna eletrônica
+  (logd.dat), com números de 5+ dígitos redigidos para anonimização e conformidade
+  LGPD. Amostra com até 5 arquivos .jez por partição.
+grao: Linha física de log da urna ordenada por file_seq.
+chaves_naturais:
+- election_year
+- turn
+- uf
+- municipio_code
+- zone_num
+- section_num
+- urna_serial
+- file_seq
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Números de mesários/eleitores com 5+ dígitos mascarados
+  (<ID_REDACTED>) e mac_code omitido.
+colunas:
+- nome: election_year
+  tipo_kaggle: integer
+  descricao: Ano eleitoral oficial (2026).
+- nome: turn
+  tipo_kaggle: integer
+  descricao: Turno eleitoral (1 ou 2).
+- nome: uf
+  tipo_kaggle: string
+  descricao: Sigla da Unidade Federativa.
+- nome: cd_pleito
+  tipo_kaggle: integer
+  descricao: Código numérico oficial do pleito TSE.
+- nome: cd_municipio
+  tipo_kaggle: integer
+  descricao: Código TSE do município.
+- nome: nr_zona
+  tipo_kaggle: integer
+  descricao: Número da zona eleitoral.
+- nome: nr_secao
+  tipo_kaggle: integer
+  descricao: Número da seção eleitoral.
+- nome: source_jez_file
+  tipo_kaggle: string
+  descricao: Nome do arquivo de pacote .jez de origem.
+- nome: source_log_member
+  tipo_kaggle: string
+  descricao: Nome do membro interno de log extraído do pacote.
+- nome: file_seq
+  tipo_kaggle: integer
+  descricao: Sequencial monotônico da linha dentro do arquivo .jez.
+- nome: raw_timestamp
+  tipo_kaggle: datetime
+  descricao: Data e hora registradas no primeiro campo do logd.dat.
+- nome: log_level
+  tipo_kaggle: string
+  descricao: Nível de severidade original do log (INFO, ALERTA, ERRO).
+- nome: urna_serial
+  tipo_kaggle: string
+  descricao: Número de série da urna eletrônica emissora.
+- nome: application
+  tipo_kaggle: string
+  descricao: Aplicativo emissor do software da urna.
+- nome: message_text
+  tipo_kaggle: string
+  descricao: Texto original do log com salvaguarda de anonimização aplicada.

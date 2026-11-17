@@ -1,0 +1,49 @@
+tabela: gold_session_completeness
+camada: gold
+status: published
+descricao: Métricas analíticas consolidadas sobre o status final das sessões de votação
+  e ciclos de eleitores por UF e turno.
+grao: Um estado terminal de sessão por turno e UF.
+chaves_naturais:
+- turn
+- uf
+- final_state
+particionamento: Arquivo único Parquet ZSTD.
+salvaguardas_privacidade: Métricas operacionais agregadas.
+colunas:
+- nome: turn
+  tipo_kaggle: integer
+  descricao: Turno eleitoral (1 ou 2).
+- nome: uf
+  tipo_kaggle: string
+  descricao: Sigla da Unidade Federativa.
+- nome: final_state
+  tipo_kaggle: string
+  descricao: Estado final da sessão (CLOSED ou INCOMPLETE).
+- nome: session_count
+  tipo_kaggle: integer
+  descricao: Quantidade de urnas/sessões que terminaram neste estado.
+- nome: total_sessions_uf
+  tipo_kaggle: integer
+  descricao: Total de urnas/sessões instaladas na UF e turno.
+- nome: state_share_pct
+  tipo_kaggle: number
+  descricao: Participação percentual deste estado sobre o total da UF.
+- nome: completion_rate
+  tipo_kaggle: number
+  descricao: Taxa de fechamento regular de sessões da UF (0 a 100%).
+- nome: total_voter_cycles
+  tipo_kaggle: integer
+  descricao: Soma total de eleitores que votaram nas sessões deste estado.
+- nome: avg_voter_cycles
+  tipo_kaggle: number
+  descricao: Média de votos computados por urna.
+- nome: min_voter_cycles
+  tipo_kaggle: integer
+  descricao: Menor quantidade de votos registrada em uma urna da amostra.
+- nome: max_voter_cycles
+  tipo_kaggle: integer
+  descricao: Maior quantidade de votos registrada em uma urna da amostra.
+- nome: total_events
+  tipo_kaggle: integer
+  descricao: Total de eventos de log processados nas sessões deste estado.

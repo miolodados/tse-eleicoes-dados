@@ -1,0 +1,36 @@
+tabela: dim_partido_munzona
+camada: bronze
+status: published
+descricao: Cadastro e votação de agremiações e coligações partidárias por município
+  e zona.
+grao: Um partido/coligação por município e zona eleitoral.
+chaves_naturais:
+- ANO_ELEICAO
+- SG_UF
+- CD_MUNICIPIO
+- NR_ZONA
+- NR_PARTIDO
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Cadastro público de legendas partidárias.
+colunas:
+- nome: ANO_ELEICAO
+  tipo_kaggle: integer
+  descricao: Ano eleitoral.
+- nome: SG_UF
+  tipo_kaggle: string
+  descricao: Sigla da UF.
+- nome: CD_MUNICIPIO
+  tipo_kaggle: integer
+  descricao: Código do município.
+- nome: NR_ZONA
+  tipo_kaggle: integer
+  descricao: Zona eleitoral.
+- nome: NR_PARTIDO
+  tipo_kaggle: integer
+  descricao: Número da legenda partidária.
+- nome: SG_PARTIDO
+  tipo_kaggle: string
+  descricao: Sigla oficial do partido.
+- nome: NM_PARTIDO
+  tipo_kaggle: string
+  descricao: Nome oficial da agremiação partidária.

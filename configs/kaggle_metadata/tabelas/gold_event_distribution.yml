@@ -1,0 +1,31 @@
+tabela: gold_event_distribution
+camada: gold
+status: published
+descricao: Tabela analítica com frequência absoluta e participação percentual de cada
+  tipo de evento de urna por UF e turno.
+grao: Um evento por turno e UF.
+chaves_naturais:
+- turn
+- uf
+- event_code
+particionamento: Arquivo único Parquet ZSTD.
+salvaguardas_privacidade: Métricas analíticas sumarizadas.
+colunas:
+- nome: event_code
+  tipo_kaggle: string
+  descricao: Código canônico do evento da urna eletrônica.
+- nome: turn
+  tipo_kaggle: integer
+  descricao: Turno eleitoral (1 ou 2).
+- nome: uf
+  tipo_kaggle: string
+  descricao: Sigla da Unidade Federativa.
+- nome: event_count
+  tipo_kaggle: integer
+  descricao: Contagem total de ocorrências do evento na UF e turno.
+- nome: total_uf_events
+  tipo_kaggle: integer
+  descricao: Total acumulado de todos os eventos registrados na UF e turno.
+- nome: percentage
+  tipo_kaggle: number
+  descricao: Proporção percentual (0 a 100%) do evento em relação ao total da UF.

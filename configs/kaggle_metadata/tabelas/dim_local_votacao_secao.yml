@@ -1,0 +1,38 @@
+tabela: dim_local_votacao_secao
+camada: bronze
+status: published
+descricao: Cadastro geográfico e predial dos locais de votação de cada seção eleitoral.
+grao: Uma seção eleitoral e respectivo endereço e local físico de votação.
+chaves_naturais:
+- ANO_ELEICAO
+- SG_UF
+- CD_MUNICIPIO
+- NR_ZONA
+- NR_SECAO
+particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'
+salvaguardas_privacidade: Informação predial e pública de locais de votação.
+colunas:
+- nome: ANO_ELEICAO
+  tipo_kaggle: integer
+  descricao: Ano eleitoral.
+- nome: SG_UF
+  tipo_kaggle: string
+  descricao: Unidade Federativa.
+- nome: CD_MUNICIPIO
+  tipo_kaggle: integer
+  descricao: Código do município.
+- nome: NR_ZONA
+  tipo_kaggle: integer
+  descricao: Zona eleitoral.
+- nome: NR_SECAO
+  tipo_kaggle: integer
+  descricao: Seção eleitoral.
+- nome: NR_LOCAL_VOTACAO
+  tipo_kaggle: integer
+  descricao: Número identificador do local de votação.
+- nome: NM_LOCAL_VOTACAO
+  tipo_kaggle: string
+  descricao: Nome do colégio ou instituição de votação.
+- nome: DS_ENDERECO
+  tipo_kaggle: string
+  descricao: Endereço do local de votação.
