@@ -1,0 +1,540 @@
+# ruff: noqa: E501
+#!/usr/bin/env python3
+"""Gera o notebook autocontido para execução no Google Colab:
+notebooks/03_ingest_urna_logs_batch/colab_ingest_urna_logs_full.ipynb
+
+Permite ingestão UF a UF ou em lote com 100% das urnas (sem amostragem),
+autenticação com Kaggle Secrets do Colab e push incremental via Kaggle Python SDK (dir_mode='tar').
+Zero dependência de comandos shell (!kaggle).
+"""
+
+import json
+from pathlib import Path
+
+
+def create_colab_notebook():
+    repo_root = Path(__file__).resolve().parent.parent
+    out_dir = repo_root / "notebooks" / "03_ingest_urna_logs_batch"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / "colab_ingest_urna_logs_full.ipynb"
+
+    cells = []
+
+    # Cell 1: Markdown — Guia de Configuração e Secrets no Colab
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "# 🗳️ Ingestão Integral de Logs de Urna UF a UF — Google Colab (100% das Urnas)\n",
+            "\n",
+            "Este notebook é **100% autocontido** e projetado para rodar no **Google Colab** (aproveitando os 200 GB de disco efêmero ou Google Drive), processando **100% dos logs de todas as urnas** de cada Unidade Federativa (UF) sem amostragem (`MAX_JEZ_FILES = None`), e sincronizando automaticamente as novas partições no dataset do Kaggle utilizando a **Kaggle Python SDK** (`dir_mode='tar'`).\n",
+            "\n",
+            "> ⚡ **100% Python Nativo:** Não utiliza comandos shell (`!kaggle`). O ciclo de vida de autenticação, download, parsing, redação LGPD e upload é orquestrado inteiramente via Python SDK.\n",
+            "\n",
+            "---\n",
+            "\n",
+            "## 🔑 Passo 1: Configurar Token do Kaggle nos Secrets do Colab\n",
+            "\n",
+            "1. No menu lateral esquerdo do Google Colab, clique no ícone de chave (**🔑 Secrets**).\n",
+            "2. Adicione os dois segredos abaixo:\n",
+            "   - **`KAGGLE_USERNAME`**: seu nome de usuário no Kaggle (ex.: `daniellmattos`)\n",
+            "   - **`KAGGLE_KEY`**: sua API Key do Kaggle (gerada em [kaggle.com/settings](https://www.kaggle.com/settings) -> *Create New Token*)\n",
+            "3. Ative a chave seletora **\"Notebook access\"** para ambos os segredos.\n",
+            "\n",
+            "> 💡 **Dica:** Se desejar persistir o acervo entre desconexões do Colab, ative a opção `USE_GOOGLE_DRIVE = True` no formulário abaixo."
+        ]
+    })
+
+    # Cell 2: Code — Instalação de dependências e inicialização do Kaggle Python SDK
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# 1. Instalação das bibliotecas necessárias no ambiente Colab\n",
+            "!pip install -q polars pyarrow httpx py7zr kaggle tqdm\n",
+            "\n",
+            "import os\n",
+            "from pathlib import Path\n",
+            "from kaggle.api.kaggle_api_extended import KaggleApi\n",
+            "\n",
+            "# 2. Carrega credenciais dos Secrets do Google Colab para as variáveis de ambiente\n",
+            "kaggle_user = None\n",
+            "kaggle_key = None\n",
+            "\n",
+            "try:\n",
+            "    from google.colab import userdata\n",
+            "    try:\n",
+            "        kaggle_user = userdata.get('KAGGLE_USERNAME')\n",
+            "        kaggle_key = userdata.get('KAGGLE_KEY')\n",
+            "    except Exception:\n",
+            "        pass\n",
+            "except ImportError:\n",
+            "    pass\n",
+            "\n",
+            "kaggle_user = kaggle_user or os.environ.get('KAGGLE_USERNAME')\n",
+            "kaggle_key = kaggle_key or os.environ.get('KAGGLE_KEY')\n",
+            "\n",
+            "if kaggle_user and kaggle_key:\n",
+            "    os.environ[\"KAGGLE_USERNAME\"] = kaggle_user\n",
+            "    os.environ[\"KAGGLE_KEY\"] = kaggle_key\n",
+            "    api = KaggleApi()\n",
+            "    api.authenticate()\n",
+            "    print(f\"✅ Kaggle Python SDK autenticado com sucesso para: {kaggle_user}\")\n",
+            "else:\n",
+            "    raise ValueError(\n",
+            "        \"❌ KAGGLE_USERNAME e KAGGLE_KEY não encontrados! \"\n",
+            "        \"Adicione os secrets no menu lateral esquerdo (🔑 Secrets) do Google Colab.\"\n",
+            "    )"
+        ]
+    })
+
+    # Cell 3: Markdown — Parâmetros Interativos
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## ⚙️ Passo 2: Definir as UFs e Parâmetros de Execução\n",
+            "\n",
+            "Configure a UF (ou lista de UFs separadas por vírgula) que deseja processar. Para processar 100% das urnas sem qualquer amostragem, mantenha `MAX_JEZ_FILES = None`."
+        ]
+    })
+
+    # Cell 4: Code — Parâmetros Interativos (Colab Forms)
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "#@title Parâmetros de Ingestão por UF (Colab Form)\n",
+            "UF_INPUT = \"AC\" #@param {type:\"string\"}\n",
+            "# Dica: Você pode informar uma UF única (\"AC\") ou múltiplas (\"AC, AP, RR\") ou \"ALL\"\n",
+            "\n",
+            "ALL_UFS = [\n",
+            "    \"AC\", \"AL\", \"AM\", \"AP\", \"BA\", \"CE\", \"DF\", \"ES\", \"GO\", \"MA\",\n",
+            "    \"MG\", \"MS\", \"MT\", \"PA\", \"PB\", \"PE\", \"PI\", \"PR\", \"RJ\", \"RN\",\n",
+            "    \"RO\", \"RR\", \"RS\", \"SC\", \"SE\", \"SP\", \"TO\", \"ZZ\"\n",
+            "]\n",
+            "\n",
+            "if UF_INPUT.strip().upper() == \"ALL\":\n",
+            "    TARGET_UFS = ALL_UFS\n",
+            "else:\n",
+            "    TARGET_UFS = [u.strip().upper() for u in UF_INPUT.split(\",\") if u.strip()]\n",
+            "\n",
+            "TARGET_TURNS = [1, 2] # Processa 1º e 2º turnos\n",
+            "ELECTION_YEAR = 2026\n",
+            "MAX_JEZ_FILES = None # None = 100% de todas as urnas (sem amostragem)\n",
+            "DATASET_SLUG = \"daniellmattos/tse-analysis-eleicoes-2026\" #@param {type:\"string\"}\n",
+            "USE_GOOGLE_DRIVE = False #@param {type:\"boolean\"}\n",
+            "SYNC_TO_KAGGLE = True #@param {type:\"boolean\"}\n",
+            "UPLOAD_AFTER_EACH_UF = False #@param {type:\"boolean\"}\n",
+            "# Se False, acumula todas as UFs selecionadas e faz 1 único upload ao final\n",
+            "\n",
+            "# Define diretórios de trabalho\n",
+            "if USE_GOOGLE_DRIVE:\n",
+            "    from google.colab import drive\n",
+            "    drive.mount('/content/drive')\n",
+            "    BASE_WORKSPACE = Path(\"/content/drive/MyDrive/tse_eleicoes_dataset\")\n",
+            "else:\n",
+            "    BASE_WORKSPACE = Path(\"/content/tse_eleicoes_dataset\")\n",
+            "\n",
+            "STAGING_DIR = Path(\"/content/staging\")\n",
+            "EXPORTS_DIR = BASE_WORKSPACE / \"exports\"\n",
+            "BASE_WORKSPACE.mkdir(parents=True, exist_ok=True)\n",
+            "STAGING_DIR.mkdir(parents=True, exist_ok=True)\n",
+            "EXPORTS_DIR.mkdir(parents=True, exist_ok=True)\n",
+            "\n",
+            "print(f\"Alvos configurados: UFs={TARGET_UFS}, Turnos={TARGET_TURNS}, Ano={ELECTION_YEAR}\")\n",
+            "print(f\"Diretório de acumulação local: {EXPORTS_DIR}\")"
+        ]
+    })
+
+    # Cell 5: Code — Cache / Sincronização inicial do dataset existente via Kaggle Python SDK
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# 1. Baixa o dataset base atual do Kaggle se o diretório local ainda não contiver as tabelas\n",
+            "if not (EXPORTS_DIR / \"fact_boletim_urna\").exists():\n",
+            "    print(f\"📥 Baixando acervo existente do dataset '{DATASET_SLUG}' via Kaggle SDK...\")\n",
+            "    api.dataset_download_files(DATASET_SLUG, path=str(EXPORTS_DIR), unzip=True)\n",
+            "    print(\"✅ Acervo base baixado e descompactado em:\", EXPORTS_DIR)\n",
+            "else:\n",
+            "    print(\"ℹ️ Acervo base já presente localmente em:\", EXPORTS_DIR)\n",
+            "\n",
+            "# 2. Garante a presença do arquivo dataset-metadata.json\n",
+            "meta_file = EXPORTS_DIR / \"dataset-metadata.json\"\n",
+            "if not meta_file.exists():\n",
+            "    print(f\"📥 Baixando metadados oficiais do dataset '{DATASET_SLUG}'...\")\n",
+            "    api.dataset_metadata(DATASET_SLUG, path=str(EXPORTS_DIR))\n",
+            "    print(\"✅ Metadados salvos em:\", meta_file)\n",
+            "else:\n",
+            "    print(\"ℹ️ Metadados já existentes em:\", meta_file)"
+        ]
+    })
+
+    # Cell 6: Markdown — Motor de Ingestão Autocontido
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 🚀 Passo 3: Motor de Ingestão Autocontido (Streaming & Extração em Memória)\n",
+            "\n",
+            "O módulo a seguir baixa o pacote oficial do TSE (`bu_imgbu_logjez_rdv_vscmr_*.zip`) diretamente para disco temporário, descompacta os arquivos `.logjez` em memória (com suporte a 7z/LZMA e ZIP), aplica a sanitização LGPD (`<ID_REDACTED>`), remove a coluna de hardware `mac_code` e grava partições Hive Parquet ZSTD de alta performance."
+        ]
+    })
+
+    # Cell 7: Code — Código de parsing e extração autocontido
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "import io\n",
+            "import re\n",
+            "import shutil\n",
+            "import time\n",
+            "import zipfile\n",
+            "from collections.abc import Sequence\n",
+            "from pathlib import Path\n",
+            "\n",
+            "import httpx\n",
+            "import polars as pl\n",
+            "import pyarrow as pa\n",
+            "import pyarrow.parquet as pq\n",
+            "import py7zr\n",
+            "from tqdm.auto import tqdm\n",
+            "\n",
+            "SEVEN_ZIP_MAGIC: bytes = b\"7z\\xbc\\xaf\\x27\\x1c\"\n",
+            "ZIP_MAGIC: bytes = b\"PK\\x03\\x04\"\n",
+            "\n",
+            "JEZ_ENTRY_RE = re.compile(\n",
+            "    r\"^o(?P<pleito>\\d{5})(?P<uf>[a-zA-Z]{2})(?P<mun>\\d{5})(?P<zona>\\d{4})(?P<secao>\\d{4})-log\\.jez$\",\n",
+            "    re.IGNORECASE,\n",
+            ")\n",
+            "_ROTATED_LOG_RE = re.compile(r\"^logd\\.dat\\.(\\d+)(?:\\.(?:jez|zip|7z))?$\", re.IGNORECASE)\n",
+            "_CURRENT_LOG_RE = re.compile(r\"^logd\\.dat$\", re.IGNORECASE)\n",
+            "\n",
+            "FACT_URNA_LOGS_SCHEMA = {\n",
+            "    \"election_year\": pl.Int32,\n",
+            "    \"turn\": pl.Int8,\n",
+            "    \"uf\": pl.Utf8,\n",
+            "    \"cd_pleito\": pl.Int64,\n",
+            "    \"cd_municipio\": pl.Int32,\n",
+            "    \"nr_zona\": pl.Int32,\n",
+            "    \"nr_secao\": pl.Int32,\n",
+            "    \"source_jez_file\": pl.Utf8,\n",
+            "    \"source_log_member\": pl.Utf8,\n",
+            "    \"file_seq\": pl.Int64,\n",
+            "    \"raw_timestamp\": pl.Utf8,\n",
+            "    \"log_level\": pl.Utf8,\n",
+            "    \"urna_serial\": pl.Utf8,\n",
+            "    \"application\": pl.Utf8,\n",
+            "    \"message_text\": pl.Utf8,\n",
+            "}\n",
+            "\n",
+            "FACT_URNA_LOGS_ARROW_SCHEMA = pa.schema([\n",
+            "    (\"election_year\", pa.int32()),\n",
+            "    (\"turn\", pa.int8()),\n",
+            "    (\"uf\", pa.string()),\n",
+            "    (\"cd_pleito\", pa.int64()),\n",
+            "    (\"cd_municipio\", pa.int32()),\n",
+            "    (\"nr_zona\", pa.int32()),\n",
+            "    (\"nr_secao\", pa.int32()),\n",
+            "    (\"source_jez_file\", pa.string()),\n",
+            "    (\"source_log_member\", pa.string()),\n",
+            "    (\"file_seq\", pa.int64()),\n",
+            "    (\"raw_timestamp\", pa.string()),\n",
+            "    (\"log_level\", pa.string()),\n",
+            "    (\"urna_serial\", pa.string()),\n",
+            "    (\"application\", pa.string()),\n",
+            "    (\"message_text\", pa.string()),\n",
+            "])\n",
+            "\n",
+            "def sanitize_message_text(message: str) -> str:\n",
+            "    \"\"\"Mascaramento estrito de IDs numéricos de 5+ dígitos para conformidade LGPD.\"\"\"\n",
+            "    return re.sub(r\"\\b\\d{5,}\\b\", \"<ID_REDACTED>\", message)\n",
+            "\n",
+            "def sort_rotated_log_names(names: Sequence[str]) -> list[str]:\n",
+            "    \"\"\"Ordena deterministicamente os segmentos de log: logd.dat.2 -> logd.dat.1 -> logd.dat.\"\"\"\n",
+            "    rotated = []\n",
+            "    current = []\n",
+            "    for name in names:\n",
+            "        base = Path(name).name\n",
+            "        m_rot = _ROTATED_LOG_RE.match(base)\n",
+            "        if m_rot:\n",
+            "            rotated.append((int(m_rot.group(1)), name))\n",
+            "        elif _CURRENT_LOG_RE.match(base):\n",
+            "            current.append(name)\n",
+            "    rotated.sort(key=lambda item: item[0], reverse=True)\n",
+            "    return [name for _, name in rotated] + sorted(current)\n",
+            "\n",
+            "def extract_log_members_from_jez_bytes(jez_bytes: bytes) -> list[tuple[str, bytes]]:\n",
+            "    \"\"\"Extrai membros de log em memória inspecionando magic bytes (7z ou ZIP).\"\"\"\n",
+            "    members: list[tuple[str, bytes]] = []\n",
+            "    if jez_bytes.startswith(SEVEN_ZIP_MAGIC):\n",
+            "        with py7zr.SevenZipFile(io.BytesIO(jez_bytes), mode=\"r\") as archive:\n",
+            "            extracted = archive.readall()\n",
+            "            for name in sort_rotated_log_names(list(extracted.keys())):\n",
+            "                stream = extracted[name]\n",
+            "                members.append((Path(name).name, stream.read()))\n",
+            "    elif jez_bytes.startswith(ZIP_MAGIC):\n",
+            "        with zipfile.ZipFile(io.BytesIO(jez_bytes), mode=\"r\") as zf:\n",
+            "            for name in sort_rotated_log_names(zf.namelist()):\n",
+            "                members.append((Path(name).name, zf.read(name)))\n",
+            "    return members\n",
+            "\n",
+            "def parse_logd_lines(raw_bytes: bytes, base_row: dict, start_seq: int = 1) -> tuple[list[dict], int]:\n",
+            "    \"\"\"Decodifica linhas tabuladas de logd.dat aplicando redação de PII e omitindo mac_code.\"\"\"\n",
+            "    rows = []\n",
+            "    seq = start_seq\n",
+            "    text = raw_bytes.decode(\"utf-8\", errors=\"replace\")\n",
+            "    for line in text.splitlines():\n",
+            "        parts = line.split(\"\\t\")\n",
+            "        if len(parts) >= 5:\n",
+            "            raw_ts = parts[0].strip()\n",
+            "            level = parts[1].strip()\n",
+            "            serial = parts[2].strip()\n",
+            "            app = parts[3].strip()\n",
+            "            msg = sanitize_message_text(parts[4].strip())\n",
+            "            row = dict(base_row)\n",
+            "            row[\"file_seq\"] = seq\n",
+            "            row[\"raw_timestamp\"] = raw_ts\n",
+            "            row[\"log_level\"] = level\n",
+            "            row[\"urna_serial\"] = serial\n",
+            "            row[\"application\"] = app\n",
+            "            row[\"message_text\"] = msg\n",
+            "            rows.append(row)\n",
+            "            seq += 1\n",
+            "    return rows, seq - start_seq\n",
+            "\n",
+            "print(\"✅ Módulos de extração, sanitização LGPD e parsing configurados com sucesso.\")"
+        ]
+    })
+
+    # Cell 8: Code — Loop Principal de Ingestão de Alta Velocidade
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "url_template = \"https://cdn.tse.jus.br/estatistica/sead/eleicoes/eleicoes{election_year}/arqurnatot/bu_imgbu_logjez_rdv_vscmr_{election_year}_{turn}t_{uf}.zip\"\n",
+            "\n",
+            "def upload_dataset_version(notes: str):\n",
+            "    \"\"\"Envia uma nova versão do dataset ao Kaggle usando o SDK Python.\"\"\"\n",
+            "    print(f\"\\n📤 [Kaggle SDK] Publicando nova versão no dataset '{DATASET_SLUG}'...\")\n",
+            "    res = api.dataset_create_version(\n",
+            "        folder=str(EXPORTS_DIR),\n",
+            "        version_notes=notes,\n",
+            "        dir_mode=\"tar\",\n",
+            "        convert_to_csv=False\n",
+            "    )\n",
+            "    print(f\"✅ [Kaggle SDK] Versão criada com sucesso! Resposta: {res}\")\n",
+            "\n",
+            "global_processed_urnas = 0\n",
+            "global_processed_lines = 0\n",
+            "\n",
+            "for current_uf in TARGET_UFS:\n",
+            "    uf_urnas = 0\n",
+            "    uf_lines = 0\n",
+            "\n",
+            "    print(f\"\\n{'#'*80}\")\n",
+            "    print(f\"INICIANDO PROCESSAMENTO DA UF: {current_uf}\")\n",
+            "    print(f\"{'#'*80}\")\n",
+            "\n",
+            "    for turn in TARGET_TURNS:\n",
+            "        zip_url = url_template.format(election_year=ELECTION_YEAR, turn=turn, uf=current_uf.lower())\n",
+            "        out_parquet = EXPORTS_DIR / \"fact_urna_logs\" / f\"election_year={ELECTION_YEAR}\" / f\"turn={turn}\" / f\"uf={current_uf.upper()}\" / \"part-00000.parquet\"\n",
+            "        out_parquet.parent.mkdir(parents=True, exist_ok=True)\n",
+            "        local_zip = STAGING_DIR / f\"bundle_{ELECTION_YEAR}_{turn}t_{current_uf}.zip\"\n",
+            "\n",
+            "        print(f\"\\n--- UF={current_uf} | Turno={turn} ---\")\n",
+            "        print(f\"URL TSE: {zip_url}\")\n",
+            "\n",
+            "        # 1. Download do ZIP oficial da UF\n",
+            "        print(f\"[1/4] Baixando arquivo da UF {current_uf}...\")\n",
+            "        t0 = time.time()\n",
+            "        try:\n",
+            "            with httpx.stream(\"GET\", zip_url, timeout=300.0, follow_redirects=True) as resp:\n",
+            "                if resp.status_code == 404:\n",
+            "                    print(f\"ℹ️ Turno {turn} inexistente para {current_uf} no TSE (404). Pulando.\")\n",
+            "                    continue\n",
+            "                resp.raise_for_status()\n",
+            "                with open(local_zip, \"wb\") as f:\n",
+            "                    for chunk in resp.iter_bytes(chunk_size=1024*1024):\n",
+            "                        f.write(chunk)\n",
+            "        except Exception as e:\n",
+            "            print(f\"⚠️ Falha no download de {zip_url}: {e}\")\n",
+            "            continue\n",
+            "\n",
+            "        dl_sec = time.time() - t0\n",
+            "        zip_size_mb = local_zip.stat().st_size / (1024 * 1024)\n",
+            "        print(f\"✅ Download concluído: {zip_size_mb:.2f} MB em {dl_sec:.1f}s ({zip_size_mb/max(1, dl_sec):.2f} MB/s)\")\n",
+            "\n",
+            "        # 2. Inspeciona e processa urnas\n",
+            "        print(f\"[2/4] Extraindo e processando logs das urnas...\")\n",
+            "        accumulated_rows = []\n",
+            "        dfs_chunks = []\n",
+            "        part_urnas = 0\n",
+            "        part_lines = 0\n",
+            "\n",
+            "        with zipfile.ZipFile(local_zip, mode=\"r\") as zf:\n",
+            "            jez_entries = [n for n in zf.namelist() if n.lower().endswith(\".logjez\") or n.lower().endswith(\".jez\")]\n",
+            "            if MAX_JEZ_FILES is not None:\n",
+            "                jez_entries = jez_entries[:MAX_JEZ_FILES]\n",
+            "            total_jez = len(jez_entries)\n",
+            "            print(f\"Total de urnas a processar nesta partição: {total_jez:,}\")\n",
+            "\n",
+            "            t_proc = time.time()\n",
+            "            pbar = tqdm(total=total_jez, desc=f\"{current_uf} T{turn}\", unit=\"urna\")\n",
+            "            for entry_name in jez_entries:\n",
+            "                m = JEZ_ENTRY_RE.match(entry_name)\n",
+            "                cd_pleito = int(m.group(\"pleito\")) if m else 0\n",
+            "                cd_mun = int(m.group(\"mun\")) if m else 0\n",
+            "                nr_zona = int(m.group(\"zona\")) if m else 0\n",
+            "                nr_secao = int(m.group(\"secao\")) if m else 0\n",
+            "\n",
+            "                jez_bytes = zf.read(entry_name)\n",
+            "                members = extract_log_members_from_jez_bytes(jez_bytes)\n",
+            "                current_seq = 1\n",
+            "                for mem_name, raw_log in members:\n",
+            "                    base_row = {\n",
+            "                        \"election_year\": ELECTION_YEAR,\n",
+            "                        \"turn\": turn,\n",
+            "                        \"uf\": current_uf.upper(),\n",
+            "                        \"cd_pleito\": cd_pleito,\n",
+            "                        \"cd_municipio\": cd_mun,\n",
+            "                        \"nr_zona\": nr_zona,\n",
+            "                        \"nr_secao\": nr_secao,\n",
+            "                        \"source_jez_file\": entry_name,\n",
+            "                        \"source_log_member\": mem_name,\n",
+            "                    }\n",
+            "                    rows, count = parse_logd_lines(raw_log, base_row, start_seq=current_seq)\n",
+            "                    accumulated_rows.extend(rows)\n",
+            "                    current_seq += count\n",
+            "                    part_lines += count\n",
+            "\n",
+            "                part_urnas += 1\n",
+            "                pbar.update(1)\n",
+            "\n",
+            "                if len(accumulated_rows) >= 500_000:\n",
+            "                    dfs_chunks.append(pl.DataFrame(accumulated_rows, schema=FACT_URNA_LOGS_SCHEMA))\n",
+            "                    accumulated_rows = []\n",
+            "\n",
+            "            pbar.close()\n",
+            "\n",
+            "        if accumulated_rows:\n",
+            "            dfs_chunks.append(pl.DataFrame(accumulated_rows, schema=FACT_URNA_LOGS_SCHEMA))\n",
+            "            accumulated_rows = []\n",
+            "\n",
+            "        proc_sec = time.time() - t_proc\n",
+            "        print(f\"✅ Processamento: {part_urnas:,} urnas ({part_lines:,} linhas) em {proc_sec:.1f}s\")\n",
+            "\n",
+            "        # 3. Escrita atômica em Parquet ZSTD nível 5\n",
+            "        print(f\"[3/4] Gravando Parquet ZSTD em: {out_parquet}\")\n",
+            "        tmp_pq = out_parquet.with_suffix(\".parquet.tmp\")\n",
+            "        with pq.ParquetWriter(tmp_pq, schema=FACT_URNA_LOGS_ARROW_SCHEMA, compression=\"zstd\", compression_level=5, use_dictionary=True) as writer:\n",
+            "            for chunk in dfs_chunks:\n",
+            "                writer.write_table(chunk.to_arrow().cast(FACT_URNA_LOGS_ARROW_SCHEMA))\n",
+            "        tmp_pq.replace(out_parquet)\n",
+            "        dfs_chunks.clear()\n",
+            "\n",
+            "        pq_size_mb = out_parquet.stat().st_size / (1024 * 1024)\n",
+            "        print(f\"✅ Parquet gravado com sucesso: {pq_size_mb:.2f} MB | {part_lines:,} linhas\")\n",
+            "\n",
+            "        # 4. Limpeza imediata do arquivo ZIP bruto para liberar disco\n",
+            "        print(f\"[4/4] Limpando arquivo ZIP temporário para preservar espaço em disco...\")\n",
+            "        local_zip.unlink(missing_ok=True)\n",
+            "\n",
+            "        uf_urnas += part_urnas\n",
+            "        uf_lines += part_lines\n",
+            "\n",
+            "    global_processed_urnas += uf_urnas\n",
+            "    global_processed_lines += uf_lines\n",
+            "    print(f\"🎉 UF {current_uf} concluída: {uf_urnas:,} urnas, {uf_lines:,} linhas.\")\n",
+            "\n",
+            "    # Upload após cada UF (se configurado)\n",
+            "    if SYNC_TO_KAGGLE and UPLOAD_AFTER_EACH_UF:\n",
+            "        note = f\"Append 100% logs da UF {current_uf} ({uf_urnas:,} urnas, {uf_lines:,} linhas)\"\n",
+            "        upload_dataset_version(note)\n",
+            "\n",
+            "print(f\"\\n{'='*80}\")\n",
+            "print(f\"PROCESSAMENTO COMPLETO DE TODAS AS UFS SELECIONADAS!\")\n",
+            "print(f\"Total Urnas: {global_processed_urnas:,} | Total Linhas: {global_processed_lines:,}\")\n",
+            "print(f\"{'='*80}\")\n",
+            "\n",
+            "# Upload consolidado do lote (se UPLOAD_AFTER_EACH_UF for False)\n",
+            "if SYNC_TO_KAGGLE and not UPLOAD_AFTER_EACH_UF and global_processed_urnas > 0:\n",
+            "    note = f\"Append lote UFs {', '.join(TARGET_UFS)} ({global_processed_urnas:,} urnas, {global_processed_lines:,} linhas)\"\n",
+            "    upload_dataset_version(note)"
+        ]
+    })
+
+    # Cell 9: Markdown — Validação e Próximos Passos
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 🔍 Passo 4: Validação do Acervo e Próximos Passos\n",
+            "\n",
+            "Após a publicação no Kaggle, o acervo de logs brutos estará completo e disponível para reexecução dos notebooks Silver e Gold (`NB 05` a `NB 09`)."
+        ]
+    })
+
+    # Cell 10: Code — Resumo das partições geradas localmente
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "logs_root = EXPORTS_DIR / \"fact_urna_logs\"\n",
+            "if logs_root.exists():\n",
+            "    parquets = sorted(logs_root.glob(\"**/*.parquet\"))\n",
+            "    total_bytes = sum(p.stat().st_size for p in parquets)\n",
+            "    print(f\"📊 Total de arquivos Parquet em fact_urna_logs: {len(parquets)}\")\n",
+            "    print(f\"💾 Espaço total ocupado: {total_bytes / (1024**3):.2f} GB\")\n",
+            "    print(\"\\nÚltimas partições geradas:\")\n",
+            "    for p in parquets[-10:]:\n",
+            "        rel = p.relative_to(EXPORTS_DIR)\n",
+            "        size_mb = p.stat().st_size / (1024 * 1024)\n",
+            "        print(f\"  - {rel} ({size_mb:.2f} MB)\")\n",
+            "else:\n",
+            "    print(\"Nenhuma partição encontrada em fact_urna_logs.\")"
+        ]
+    })
+
+    nb_data = {
+        "cells": cells,
+        "metadata": {
+            "colab": {
+                "provenance": []
+            },
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3"
+            },
+            "language_info": {
+                "name": "python",
+                "version": "3.10.12"
+            }
+        },
+        "nbformat": 4,
+        "nbformat_minor": 5
+    }
+
+    with open(out_file, "w", encoding="utf-8") as f:
+        json.dump(nb_data, f, indent=1, ensure_ascii=False)
+
+    print(f"Sucesso: gerado {out_file} com {len(cells)} células!")
+
+
+if __name__ == "__main__":
+    create_colab_notebook()
