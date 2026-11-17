@@ -44,15 +44,23 @@ O projeto é estruturado em uma arquitetura de dados em três camadas: **Bronze,
 
 ---
 
-## 2. Notebooks do Pipeline (Execução 100% no Kaggle)
+## 2. Notebooks do Pipeline (Kaggle Primário & Extensão Colab via `kagglehub`)
 
-Todos os notebooks são autocontidos, idempotentes e executados remotamente em Kaggle Kernels usando a GPU/CPU da plataforma:
+Todos os 9 notebooks originais faseados são autocontidos, idempotentes e seguem um contrato único de ciclo de vida via **KaggleHub SDK (`kagglehub>=0.3.5`)**, compatível com **Kaggle Notebooks** (ambiente primário) e **Google Colab** (via extensão oficial do Kaggle):
+
+1. **Autenticação Manual no Topo (`kagglehub.login()`):** Cada notebook solicita autenticação manual interativa logo no início da execução.
+2. **Variável Única de Estado (`DATASET_PATH`) e Staging Isolado (`STAGING_PATH`):**
+   - `DATASET_HANDLE = os.getenv("KAGGLE_DATASET_HANDLE", "miolodados/tse-eleicoes-dados")`
+   - `DATASET_PATH = os.getenv("DATASET_PATH", "/data/export/tse-eleicoes-dados")`
+   - `STAGING_PATH = os.getenv("STAGING_PATH", "/tmp/tse-eleicoes-staging")` (downloads brutos `.zip`/`.jez` ficam estritamente fora de `DATASET_PATH`).
+3. **Hidratação Condicional (`bootstrap_dataset`):** Se `DATASET_PATH` estiver vazio, o notebook baixa automaticamente a versão mais recente de `DATASET_HANDLE` via `kagglehub.dataset_download(handle, output_dir=str(DATASET_PATH), force_download=True)` (com sincronização para diretório gravável caso o runtime monte `/kaggle/input` somente-leitura e suporte a *Cold Start* nas fases de ingestão `01`–`03`, bloqueando ausência de upstream nas fases `04`–`09`).
+4. **Higiene Pré-Upload e Publicação Contínua (`kagglehub.dataset_upload()`):** Ao término de cada fase, o notebook valida ausência de arquivos brutos/temporários (`.zip`, `.jez`, `.tmp`, `.part`) e publica uma nova versão incremental consolidada do dataset no Kaggle.
 
 | Notebook | Camada | Objetivo | Kernel Kaggle |
 |---|---|---|---|
 | `01_urna_logs_poc` | PoC | PoC de streaming e parser de `.jez` em memória | `daniellmattos/tse-analysis-01-urna-logs-poc` |
 | `02_ingest_electoral_tables` | Bronze | Ingestão das 17 tabelas tabulares 1:1 em Parquet ZSTD | `daniellmattos/tse-analysis-02-ingest-electoral-tables` |
-| `03_ingest_urna_logs_batch` | Bronze | Ingestão em batch particionado dos logs da urna (`fact_urna_logs`) | `daniellmattos/tse-analysis-03-ingest-urna-logs-batch` |
+| `03_ingest_urna_logs_batch` | Bronze | Ingestão em batch particionado de 100% dos logs da urna (`fact_urna_logs`) | `daniellmattos/tse-analysis-03-ingest-urna-logs-batch` |
 | `04_dataset_integrity_and_release` | Bronze | Auditoria de integridade, cobertura e integridade de hashes | `daniellmattos/tse-analysis-04-dataset-integrity-and-release` |
 | `05_silver_fact_urna_event` | Silver | Classificação semântica dos logs da urna em 16 event codes canônicos | `daniellmattos/tse-analysis-05-silver-fact-urna-event` |
 | `06_silver_fact_voting_session` | Silver | Reconstrução de sessões operacionais de votação via máquina de estados v1.0.0 | `daniellmattos/tse-analysis-06-silver-fact-voting-session` |
@@ -62,11 +70,11 @@ Todos os notebooks são autocontidos, idempotentes e executados remotamente em K
 
 ---
 
-## 3. Execução e Atualização via Kaggle CLI
+## 3. Execução e Versionamento via KaggleHub SDK (`kagglehub`) e Kaggle CLI
 
-A execução de ponta a ponta e a publicação de versões ocorrem exclusivamente no Kaggle.
+O consumo e a publicação incremental entre fases acontecem diretamente dentro dos notebooks via `kagglehub.dataset_download()` e `kagglehub.dataset_upload()` apontando para `DATASET_PATH = "/data/export/tse-eleicoes-dados"` (sem dependência de `/content/drive` ou `/kaggle/working`).
 
-> **Não use** `kaggle datasets version ... --dir-mode zip` neste dataset: ele compacta cada pasta em `.zip`, destrói a estrutura Hive (`election_year=/turn=/uf=`) e remove a navegação de arquivos e colunas no Kaggle. Novas versões de dados devem preservar a árvore de arquivos (procedimento em validação).
+> **Não use** `kaggle datasets version ... --dir-mode zip` neste dataset: ele compacta cada pasta em `.zip`, destrói a estrutura Hive (`election_year=/turn=/uf=`) e remove a navegação de arquivos e colunas no Kaggle.
 
 ```bash
 # 1. Executar notebook individual via Kaggle CLI
