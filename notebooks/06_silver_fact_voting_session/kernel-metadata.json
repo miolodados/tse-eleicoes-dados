@@ -1,0 +1,15 @@
+{
+  "id": "daniellmattos/tse-analysis-06-silver-fact-voting-session",
+  "title": "TSE Analysis 06 Silver fact_voting_session",
+  "code_file": "06_silver_fact_voting_session.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": ["daniellmattos/tse-analysis-eleicoes-2026"],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}

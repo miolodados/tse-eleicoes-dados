@@ -88,3 +88,78 @@ Todas as tabelas refletem **fielmente o formato original da fonte (1:1)** em **P
 - **Formato Físico:** Apache Parquet com compressão **ZSTD** (nível 5).
 - **Particionamento Permitido (`ALLOWED_PARTITION_KEYS`):** Exclusivamente `("election_year", "turn", "uf")` ou `("turn", "uf")`.
 - **Particionamento Proibido (`FORBIDDEN_PARTITION_KEYS`):** É proibido particionar por `section_num`, `urna_serial`, `municipio_code` ou `raw_timestamp`.
+
+---
+
+## 4. Camada Silver (Tabelas Fato Interpretadas e Dimensões Conformadas)
+
+### 4.1. `fact_urna_event`
+- **Fonte Primária:** `fact_urna_logs` (Bronze) interpretado deterministicamente contra a allowlist de `configs/event_catalog.yml` via Notebook `05_silver_fact_urna_event`.
+- **Grão:** Uma linha por evento interpretado (`urna_event`).
+- **Schema (`16 colunas`):**
+  - `election_year` (`Int16`): Ano da eleição.
+  - `turn` (`Int8`): Turno (1 ou 2).
+  - `uf` (`String`): Unidade Federativa.
+  - `municipio_code` (`Int32`): Código TSE do município.
+  - `zone_num` (`Int16`): Zona eleitoral.
+  - `section_num` (`Int32`): Seção eleitoral.
+  - `urna_serial` (`String`): Número de série da urna.
+  - `file_seq` (`Int64`): Sequência monotônica do evento.
+  - `raw_timestamp` (`Datetime("us")`): Timestamp original da linha de log.
+  - `has_timestamp_regression` (`Boolean`): Indicador de regressão temporal.
+  - `application` (`String`): Aplicativo de origem (`VOTA`, `GAP`, etc.).
+  - `log_level` (`String`): Nível de severidade original.
+  - `event_code` (`String`): Família canônica do catálogo (ex.: `SECTION_OPENED`, `VOTER_ENABLED`, `BIOMETRIC_READ_ATTEMPT`, `UNKNOWN_EVENT`).
+  - `biometric_attempt_num` (`Int8`): Número da tentativa biométrica (1..127) quando aplicável.
+  - `classification_status` (`String`): `"CLASSIFIED"` ou `"UNKNOWN"`.
+  - `parser_version` (`String`): Versão do parser e catálogo de eventos (`1.0.0`).
+
+### 4.2. `fact_voting_session`
+- **Fonte Primária:** `fact_urna_event` (Silver) reconstruído deterministicamente via máquina de estados v1.0.0 no Notebook `06_silver_fact_voting_session`.
+- **Grão:** Uma linha por sessão operacional de urna/seção (`voting_session`).
+- **Schema (`15 colunas`):**
+  - `election_year` (`Int16`), `turn` (`Int8`), `uf` (`String`), `municipio_code` (`Int32`), `zone_num` (`Int16`), `section_num` (`Int32`), `urna_serial` (`String`).
+  - `first_event_ts` (`Datetime`): Timestamp do primeiro evento observado da sessão.
+  - `last_event_ts` (`Datetime`): Timestamp do último evento observado da sessão.
+  - `final_state` (`String`): `"CLOSED"` (seção encerrada normalmente) ou `"INCOMPLETE"` (sem evento terminal).
+  - `is_complete` (`Boolean`): `True` se `final_state == "CLOSED"`.
+  - `has_contingency` (`Boolean`): Indicador de evento de contingência durante a sessão.
+  - `voter_cycles` (`Int32`): Quantidade de ciclos completos de votação observados (`VOTER_VOTE_COMPUTED`).
+  - `event_count` (`Int32`): Total de eventos contabilizados na sessão.
+  - `state_machine_version` (`String`): Versão da máquina de estados (`1.0.0`).
+
+### 4.3. Dimensões Conformadas Silver
+- **`dim_election`:** `election_year` (`Int16`), `turn` (`Int8`), `election_label` (`String`).
+- **`dim_cargo`:** `cd_cargo` (`Int32`), `ds_cargo` (`String`), `tp_cargo` (`String`).
+- **`dim_partido`:** `cd_partido` (`Int32`), `sg_partido` (`String`), `nm_partido` (`String`).
+
+---
+
+## 5. Camada Gold (Produtos Analíticos e Métricas Operacionais)
+
+Gerada no Notebook `08_gold_analytics` a partir das camadas Silver, sem reprocessar diretamente fontes brutas:
+
+### 5.1. `gold_event_distribution`
+- **Grão:** `event_code` $\times$ `turn` $\times$ `uf`.
+- **Métricas:** `event_count` (contagem de ocorrências), `share_pct` (participação percentual sobre os eventos da UF/turno).
+
+### 5.2. `gold_session_completeness`
+- **Grão:** `turn` $\times$ `uf` $\times$ `final_state`.
+- **Métricas:** `session_count` (total de sessões), `total_voter_cycles` (soma de votos computados), `contingency_session_count` (sessões com contingência).
+
+### 5.3. `gold_biometric_attempts`
+- **Grão:** `turn` $\times$ `uf` $\times$ `biometric_attempt_num`.
+- **Métricas:** `attempt_count` (frequência de cada número de tentativa 1..4+), `cumulative_pct` (taxa de resolução acumulada por tentativa).
+
+---
+
+## 6. Matriz de Entidades e Relacionamentos
+
+| Entidade Origem | Chaves Naturais | Dimensão Conformada | Cardinalidade | Observação |
+|---|---|---|---|---|
+| `fact_urna_logs` | `urna_serial`, `file_seq` | — (Bronze 1:1) | N:1 por urna | Registros tabulados de log |
+| `fact_urna_event` | `urna_serial`, `file_seq` | `fact_urna_logs` | 1:1 exata | Preserva grão e total de linhas |
+| `fact_voting_session` | `mun`, `zona`, `secao`, `urna` | `fact_urna_event` | 1:N eventos | Reconstrução por máquina de estados |
+| `fact_votacao_secao` | `mun`, `zona`, `secao`, `cargo` | `dim_cargo`, `dim_partido` | N:1 | Votação nominal e legenda |
+| `fact_eleitorado_perfil` | `mun`, `zona`, `secao` | `dim_local_votacao_secao` | N:1 | Perfil sociodemográfico |
+

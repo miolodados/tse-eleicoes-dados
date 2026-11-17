@@ -1,0 +1,15 @@
+{
+  "id": "daniellmattos/tse-analysis-05-silver-fact-urna-event",
+  "title": "TSE Analysis 05 Silver fact_urna_event",
+  "code_file": "05_silver_fact_urna_event.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": ["daniellmattos/tse-analysis-eleicoes-2026"],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}
