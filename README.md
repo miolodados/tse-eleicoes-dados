@@ -46,14 +46,14 @@ O projeto é estruturado em uma arquitetura de dados em três camadas: **Bronze,
 
 ## 2. Notebooks do Pipeline (Kaggle Primário & Extensão Colab via `kagglehub`)
 
-Todos os 9 notebooks originais faseados são autocontidos, idempotentes e seguem um contrato único de ciclo de vida via **KaggleHub SDK (`kagglehub>=0.3.5`)**, compatível com **Kaggle Notebooks** (ambiente primário) e **Google Colab** (via extensão oficial do Kaggle):
+Todos os 9 notebooks originais faseados são autocontidos, idempotentes e seguem um contrato único de ciclo de vida via **KaggleHub SDK (`kagglehub>=0.4.0`)**, compatível com **Kaggle Notebooks** (ambiente primário) e **Google Colab** (via extensão oficial do Kaggle):
 
-1. **Autenticação Manual no Topo (`kagglehub.login()`):** Cada notebook solicita autenticação manual interativa logo no início da execução.
+1. **Autenticação Inteligente (`ensure_kaggle_auth()`):** Usa credenciais do ambiente (`KAGGLE_API_TOKEN`, `KAGGLE_USERNAME`/`KAGGLE_KEY` ou `~/.kaggle/kaggle.json`) em execuções batch/headless e aciona `kagglehub.login()` apenas em sessões interativas.
 2. **Variável Única de Estado (`DATASET_PATH`) e Staging Isolado (`STAGING_PATH`):**
    - `DATASET_HANDLE = os.getenv("KAGGLE_DATASET_HANDLE", "miolodados/tse-eleicoes-dados")`
    - `DATASET_PATH = os.getenv("DATASET_PATH", "/data/export/tse-eleicoes-dados")`
    - `STAGING_PATH = os.getenv("STAGING_PATH", "/tmp/tse-eleicoes-staging")` (downloads brutos `.zip`/`.jez` ficam estritamente fora de `DATASET_PATH`).
-3. **Hidratação Condicional (`bootstrap_dataset`):** Se `DATASET_PATH` estiver vazio, o notebook baixa automaticamente a versão mais recente de `DATASET_HANDLE` via `kagglehub.dataset_download(handle, output_dir=str(DATASET_PATH), force_download=True)` (com sincronização para diretório gravável caso o runtime monte `/kaggle/input` somente-leitura e suporte a *Cold Start* nas fases de ingestão `01`–`03`, bloqueando ausência de upstream nas fases `04`–`09`).
+3. **Hidratação Condicional (`bootstrap_dataset`):** Se `DATASET_PATH` estiver vazio, o notebook baixa automaticamente a versão mais recente de `DATASET_HANDLE` via `kagglehub.dataset_download(handle, output_dir=str(DATASET_PATH), force_download=True)` (com sincronização e normalização de permissões graváveis caso o runtime monte `/kaggle/input` somente-leitura, além de reconstrução automática do zero caso o dataset ainda não exista no Kaggle).
 4. **Higiene Pré-Upload e Publicação Contínua (`kagglehub.dataset_upload()`):** Ao término de cada fase, o notebook valida ausência de arquivos brutos/temporários (`.zip`, `.jez`, `.tmp`, `.part`) e publica uma nova versão incremental consolidada do dataset no Kaggle.
 
 | Notebook | Camada | Objetivo | Kernel Kaggle |

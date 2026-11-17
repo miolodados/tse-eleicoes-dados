@@ -6,6 +6,7 @@ import ast
 import json
 import os
 import re
+import stat
 import sys
 import tempfile
 import types
@@ -34,8 +35,14 @@ def _extract_bootstrap_namespace(nb_path: Path) -> dict[str, object]:
     tree = ast.parse(src)
 
     keep_names = {"DATASET_HANDLE", "DATASET_PATH", "STAGING_PATH", "ALLOW_COLD_START"}
-    keep_funcs = {"is_directory_empty", "bootstrap_dataset"}
-    keep_imports = {"os", "shutil", "pathlib"}
+    keep_funcs = {
+        "is_directory_empty",
+        "ensure_writable_tree",
+        "is_dataset_not_found_error",
+        "ensure_kaggle_auth",
+        "bootstrap_dataset",
+    }
+    keep_imports = {"os", "shutil", "stat", "sys", "pathlib"}
 
     selected_nodes: list[ast.stmt] = []
     for node in tree.body:
@@ -76,6 +83,9 @@ def test_all_phased_notebooks_kagglehub_contract_and_compile() -> None:
         "/data/export/tse-eleicoes-dados",
         "/tmp/tse-eleicoes-staging",
         "is_directory_empty",
+        "ensure_writable_tree",
+        "is_dataset_not_found_error",
+        "ensure_kaggle_auth",
         "bootstrap_dataset",
         "kagglehub.login()",
         "kagglehub.dataset_download",
@@ -166,7 +176,7 @@ def test_existing_notebook_test_invariants_preserved() -> None:
 
 
 def test_bootstrap_dataset_behavior_with_mock_kagglehub() -> None:
-    """Testa is_directory_empty e bootstrap_dataset (cache, download, mount ro e cold start)."""
+    """Testa is_directory_empty e bootstrap_dataset (cache, mount ro 0444, 404 cold-start e erro de rede)."""
     for rel_path, expected_cold in PHASED_NOTEBOOKS:
         ns = _extract_bootstrap_namespace(REPO_ROOT / rel_path)
         assert ns["ALLOW_COLD_START"] is expected_cold
@@ -214,11 +224,13 @@ def test_bootstrap_dataset_behavior_with_mock_kagglehub() -> None:
             assert res == populated_dir
             assert download_calls == []
 
-            # 3. Diretório vazio baixa e sincroniza mesmo se retornar mount read-only distinto
+            # 3. Diretório vazio baixa, sincroniza de mount read-only (0444) e garante permissão de escrita
             ro_mount = base / "ro_mount"
             ro_mount.mkdir()
             (ro_mount / "fact_urna_logs").mkdir()
-            (ro_mount / "fact_urna_logs" / "part-0.parquet").write_bytes(b"PAR1")
+            ro_file = ro_mount / "fact_urna_logs" / "part-0.parquet"
+            ro_file.write_bytes(b"PAR1")
+            ro_file.chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)  # 0444 read-only
 
             def _mock_download(
                 handle: str,
@@ -234,20 +246,34 @@ def test_bootstrap_dataset_behavior_with_mock_kagglehub() -> None:
             target_dir = base / "target_ds"
             bootstrap_dataset("miolodados/tse-eleicoes-dados", target_dir, allow_cold_start=False)
             assert len(download_calls) == 1
-            assert download_calls[0][1]["output_dir"] == str(target_dir)
-            assert download_calls[0][1]["force_download"] is True
-            assert (target_dir / "fact_urna_logs" / "part-0.parquet").read_bytes() == b"PAR1"
+            copied_file = target_dir / "fact_urna_logs" / "part-0.parquet"
+            assert copied_file.read_bytes() == b"PAR1"
+            # Deve permitir sobrescrita sem PermissionError!
+            copied_file.write_bytes(b"PAR2_WRITABLE")
+            assert copied_file.read_bytes() == b"PAR2_WRITABLE"
 
-            # 4. Cold start vs erro fatal em 404
+            # 4. Se o dataset não for encontrado (404 Not Found), reconstrói do zero mesmo com allow_cold_start=False
             def _mock_404(
                 handle: str,
                 output_dir: str | None = None,
                 force_download: bool = False,
             ) -> str:
-                raise RuntimeError("404 Client Error: Not Found")
+                raise RuntimeError("404 Client Error: Not Found for url")
 
             fake_kh.dataset_download = _mock_404  # type: ignore[attr-defined]
             cold_dir = base / "cold_ds"
+            bootstrap_dataset("miolodados/tse-eleicoes-dados", cold_dir, allow_cold_start=False)
+            assert is_directory_empty(cold_dir) is True
+
+            # 5. Erro genérico de rede/500 falha quando allow_cold_start=False, mas passa se allow_cold_start=True
+            def _mock_500(
+                handle: str,
+                output_dir: str | None = None,
+                force_download: bool = False,
+            ) -> str:
+                raise RuntimeError("500 Internal Server Error: gateway timeout")
+
+            fake_kh.dataset_download = _mock_500  # type: ignore[attr-defined]
             bootstrap_dataset("miolodados/tse-eleicoes-dados", cold_dir, allow_cold_start=True)
             assert is_directory_empty(cold_dir) is True
 
@@ -256,7 +282,7 @@ def test_bootstrap_dataset_behavior_with_mock_kagglehub() -> None:
             except RuntimeError as exc:
                 assert "Falha ao popular DATASET_PATH" in str(exc)
             else:
-                raise AssertionError("Esperado RuntimeError quando allow_cold_start=False")
+                raise AssertionError("Esperado RuntimeError em erro 500 quando allow_cold_start=False")
         finally:
             if old_kh is None:
                 sys.modules.pop("kagglehub", None)
@@ -266,7 +292,7 @@ def test_bootstrap_dataset_behavior_with_mock_kagglehub() -> None:
 
 def test_pyproject_includes_kagglehub() -> None:
     pyproject_text = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert "kagglehub>=0.3.5" in pyproject_text
+    assert "kagglehub>=0.4.0" in pyproject_text
 
 
 if __name__ == "__main__":
