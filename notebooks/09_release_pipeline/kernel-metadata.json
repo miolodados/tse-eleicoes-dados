@@ -1,0 +1,15 @@
+{
+  "id": "daniellmattos/tse-analysis-09-release-pipeline",
+  "title": "TSE Analysis 09 Release Pipeline",
+  "code_file": "09_release_pipeline.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": ["daniellmattos/tse-analysis-eleicoes-2026"],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}

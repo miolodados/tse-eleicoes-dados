@@ -1,0 +1,17 @@
+{
+  "id": "daniellmattos/tse-analysis-08-gold-analytics",
+  "title": "TSE Analysis 08 Gold Analytics",
+  "code_file": "08_gold_analytics.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "daniellmattos/tse-analysis-eleicoes-2026"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}
