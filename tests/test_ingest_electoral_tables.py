@@ -16,7 +16,7 @@ from tse_analysis.inventory.catalog import assert_redistribution_allowed, load_s
 
 
 def _load_notebook_namespace(repo_root: Path) -> dict[str, Any]:
-    """Carrega as definições declarativas e funções das células 1 a 3 do notebook 02."""
+    """Carrega as células de definição do notebook 02 (bootstrap, catálogo, CKAN e motor)."""
     nb_path = (
         repo_root
         / "notebooks"
@@ -26,8 +26,8 @@ def _load_notebook_namespace(repo_root: Path) -> dict[str, Any]:
     nb_data = json.loads(nb_path.read_text(encoding="utf-8"))
     code_cells = [c for c in nb_data["cells"] if c.get("cell_type") == "code"]
     namespace: dict[str, Any] = {}
-    # Executa as 3 células de definição (catálogo, CKAN/SHA-512/ZIP e motor de ingestão/manifesto)
-    for cell in code_cells[:3]:
+    # Executa todas as células de definição antes da célula final de execução
+    for cell in code_cells[:-1]:
         source_code = "".join(cell.get("source", []))
         exec(compile(source_code, str(nb_path), "exec"), namespace)
     return namespace

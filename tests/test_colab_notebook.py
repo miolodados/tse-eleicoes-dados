@@ -31,7 +31,11 @@ def _extract_bootstrap_namespace(nb_path: Path) -> dict[str, object]:
     """Executa apenas definições de bootstrap da célula inicial em namespace isolado."""
     nb_data = json.loads(nb_path.read_text(encoding="utf-8"))
     code_cells = [c for c in nb_data["cells"] if c.get("cell_type") == "code"]
-    src = "".join(code_cells[0]["source"])
+    target_cell = next(
+        (c for c in code_cells if "def bootstrap_dataset" in "".join(c.get("source", []))),
+        code_cells[0],
+    )
+    src = "".join(target_cell["source"])
     tree = ast.parse(src)
 
     keep_names = {"DATASET_HANDLE", "DATASET_PATH", "STAGING_PATH", "ALLOW_COLD_START"}
@@ -80,8 +84,7 @@ def test_all_phased_notebooks_kagglehub_contract_and_compile() -> None:
         "DATASET_HANDLE",
         "DATASET_PATH",
         "STAGING_PATH",
-        "/data/export/tse-eleicoes-dados",
-        "/tmp/tse-eleicoes-staging",
+
         "is_directory_empty",
         "ensure_writable_tree",
         "is_dataset_not_found_error",
@@ -98,7 +101,6 @@ def test_all_phased_notebooks_kagglehub_contract_and_compile() -> None:
     forbidden_legacy = [
         "/kaggle/working",
         "/kaggle/input",
-        "/content/drive",
         "--dir-mode",
         "daniellmattos/tse-analysis-eleicoes-2026",
     ]
@@ -129,8 +131,8 @@ def test_all_phased_notebooks_kagglehub_contract_and_compile() -> None:
             assert token in full_code, f"{rel_path} sem token obrigatório: {token!r}"
 
         expected_cold_str = f"ALLOW_COLD_START = {expected_cold_start}"
-        assert expected_cold_str in code_sources[0], (
-            f"{rel_path} cell[0] deve definir {expected_cold_str!r}"
+        assert expected_cold_str in full_code, (
+            f"{rel_path} deve definir {expected_cold_str!r}"
         )
 
         for legacy in forbidden_legacy:
@@ -151,7 +153,7 @@ def test_existing_notebook_test_invariants_preserved() -> None:
 
         data = json.loads(raw)
         code_cells = [c for c in data["cells"] if c.get("cell_type") == "code"]
-        assert len(code_cells) == 4
+        assert len(code_cells) in (4, 5)
         for cell in code_cells:
             assert cell.get("execution_count") is not None
 
@@ -176,11 +178,12 @@ def test_existing_notebook_test_invariants_preserved() -> None:
 
 
 def test_bootstrap_dataset_behavior_with_mock_kagglehub() -> None:
-    """Testa is_directory_empty e bootstrap_dataset (cache, mount ro 0444, 404 cold-start e erro de rede)."""
+    """Testa is_directory_empty e bootstrap_dataset (cache, ro mount, 404 e erro de rede)."""
     for rel_path, expected_cold in PHASED_NOTEBOOKS:
         ns = _extract_bootstrap_namespace(REPO_ROOT / rel_path)
         assert ns["ALLOW_COLD_START"] is expected_cold
-        assert ns["DATASET_PATH"] == "/data/export/tse-eleicoes-dados"
+        assert ns["DATASET_HANDLE"] == "daniellmattos/tse-eleicoes-dados-v2"
+        assert ns["DATASET_PATH"] == "/content/drive/MyDrive/tse-eleicoes-dados/data"
         assert ns["STAGING_PATH"] == "/tmp/tse-eleicoes-staging"
 
     ns = _extract_bootstrap_namespace(
@@ -224,7 +227,7 @@ def test_bootstrap_dataset_behavior_with_mock_kagglehub() -> None:
             assert res == populated_dir
             assert download_calls == []
 
-            # 3. Diretório vazio baixa, sincroniza de mount read-only (0444) e garante permissão de escrita
+            # 3. Diretório vazio baixa de mount read-only (0444) e garante escrita
             ro_mount = base / "ro_mount"
             ro_mount.mkdir()
             (ro_mount / "fact_urna_logs").mkdir()
@@ -252,7 +255,7 @@ def test_bootstrap_dataset_behavior_with_mock_kagglehub() -> None:
             copied_file.write_bytes(b"PAR2_WRITABLE")
             assert copied_file.read_bytes() == b"PAR2_WRITABLE"
 
-            # 4. Se o dataset não for encontrado (404 Not Found), reconstrói do zero mesmo com allow_cold_start=False
+            # 4. Se dataset não encontrado (404 Not Found), reconstrói do zero mesmo sem cold-start
             def _mock_404(
                 handle: str,
                 output_dir: str | None = None,
@@ -265,7 +268,7 @@ def test_bootstrap_dataset_behavior_with_mock_kagglehub() -> None:
             bootstrap_dataset("miolodados/tse-eleicoes-dados", cold_dir, allow_cold_start=False)
             assert is_directory_empty(cold_dir) is True
 
-            # 5. Erro genérico de rede/500 falha quando allow_cold_start=False, mas passa se allow_cold_start=True
+            # 5. Erro genérico de rede/500 falha sem cold-start, mas passa com allow_cold_start=True
             def _mock_500(
                 handle: str,
                 output_dir: str | None = None,
@@ -282,7 +285,9 @@ def test_bootstrap_dataset_behavior_with_mock_kagglehub() -> None:
             except RuntimeError as exc:
                 assert "Falha ao popular DATASET_PATH" in str(exc)
             else:
-                raise AssertionError("Esperado RuntimeError em erro 500 quando allow_cold_start=False")
+                raise AssertionError(
+                    "Esperado RuntimeError em erro 500 quando allow_cold_start=False"
+                )
         finally:
             if old_kh is None:
                 sys.modules.pop("kagglehub", None)

@@ -15,3 +15,14 @@ dist/
 .ruff_cache/
 .ipynb_checkpoints/
 .DS_Store
+# Logs and Colab outputs
+logs/
+*_output.ipynb
+
+# Secrets and local environment files (never commit credentials)
+.env
+*.env
+*.env.*
+colab_token.env
+kaggle.json
+

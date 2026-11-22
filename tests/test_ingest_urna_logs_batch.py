@@ -16,7 +16,7 @@ import pytest
 
 
 def _load_notebook_03_namespace(repo_root: Path) -> dict[str, Any]:
-    """Carrega as definições declarativas e funções das células 1 a 3 do notebook 03."""
+    """Carrega as definições declarativas e funções das células de definição do notebook 03."""
     nb_path = (
         repo_root
         / "notebooks"
@@ -26,7 +26,9 @@ def _load_notebook_03_namespace(repo_root: Path) -> dict[str, Any]:
     nb_data = json.loads(nb_path.read_text(encoding="utf-8"))
     code_cells = [c for c in nb_data["cells"] if c.get("cell_type") == "code"]
     namespace: dict[str, Any] = {}
-    for cell in code_cells[:3]:
+    for cell in code_cells:
+        if cell.get("id") == "cell-execute-and-report":
+            continue
         source_code = "".join(cell.get("source", []))
         exec(compile(source_code, str(nb_path), "exec"), namespace)
     return namespace
@@ -710,4 +712,245 @@ def test_adversarial_reconciliation_nested_rotations_and_corrupted_jez_rollback(
     assert list(exports_bad.rglob("*.parquet")) == []
     assert list(exports_bad.rglob("*.tmp")) == []
     assert load_manifest(manifest_bad)["partitions"] == {}
+
+
+def _build_multi_jez_zip(zip_path: Path, jez_count: int = 6, lines_per_jez: int = 120) -> int:
+    """Cria ZIP estadual sintético com múltiplas urnas (.jez) e retorna total de linhas."""
+    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    total_lines = 0
+    with zipfile.ZipFile(zip_path, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for idx in range(1, jez_count + 1):
+            log_lines = []
+            for line_no in range(1, lines_per_jez + 1):
+                fake_id = 10000 + idx * 1000 + line_no
+                log_lines.append(
+                    f"04/10/2026 08:{line_no % 60:02d}:{idx % 60:02d}\tINFO\t0226{idx:04d}\tVOTA\t"
+                    f"Urna {idx} evento {line_no} eleitor {fake_id} texto {idx * 37 + line_no}\t"
+                    f"AA{idx:02d}BBCCDD{line_no:06X}"
+                )
+            payload_bytes = ("\n".join(log_lines) + "\n").encode("latin1")
+            total_lines += lines_per_jez
+            jez_bytes = _build_synthetic_zip_jez({"logd.dat": payload_bytes})
+            zf.writestr(f"o03220ac010150002{idx:04d}-log.jez", jez_bytes)
+    return total_lines
+
+
+def test_multipart_parquet_rollover_preserves_urna_boundaries_and_duckdb_read(
+    nb03_ns: dict[str, Any], tmp_path: Path
+) -> None:
+    """Valida rollover em part-N.parquet, fronteira de .jez, DuckDB Hive e limpeza de órfãos."""
+    import duckdb
+
+    ingest_partition = nb03_ns["ingest_uf_turn_partition"]
+    list_parts = nb03_ns["list_partition_parquet_files"]
+    part_dir_fn = nb03_ns["partition_dir_path"]
+
+    staging_dir = tmp_path / "staging"
+    exports_dir = tmp_path / "exports"
+    manifest_path = exports_dir / "_checkpoints" / "manifest.json"
+    zip_path = (
+        staging_dir
+        / "election_year=2026"
+        / "turn=1"
+        / "uf=AC"
+        / "bu_imgbu_logjez_rdv_vscmr_2026_1t_AC.zip"
+    )
+    expected_total_lines = _build_multi_jez_zip(zip_path, jez_count=6, lines_per_jez=120)
+
+    # Usa teto pequeno (2048 bytes) para forçar rollover entre fronteiras de .jez
+    res = ingest_partition(
+        election_year=2026,
+        turn=1,
+        uf="AC",
+        staging_dir=staging_dir,
+        exports_dir=exports_dir,
+        manifest_path=manifest_path,
+        max_jez_files=None,
+        skip_existing=False,
+        force_refresh=True,
+        max_part_size_bytes=2048,
+    )
+
+    assert res["part_files_count"] >= 2
+    assert len(res["parquet_paths"]) == res["part_files_count"]
+    assert res["physical_logd_lines_count"] == expected_total_lines
+    assert res["parquet_row_count"] == expected_total_lines
+
+    part_dir = part_dir_fn(exports_dir, 2026, 1, "AC")
+    part_files = list_parts(part_dir)
+    assert len(part_files) == res["part_files_count"]
+    assert [p.name for p in part_files] == [f"part-{idx}.parquet" for idx in range(len(part_files))]
+
+    # Nenhum source_jez_file pode ser dividido entre múltiplos part-N.parquet e file_seq é 1..N
+    seen_jez_to_part: dict[str, str] = {}
+    sum_rows = 0
+    for pf in part_files:
+        sum_rows += int(pq.read_metadata(pf).num_rows)
+        df_part = pl.read_parquet(pf)
+        for jez_name in df_part["source_jez_file"].unique().to_list():
+            assert jez_name not in seen_jez_to_part, (
+                f"Arquivo .jez {jez_name} dividido entre {seen_jez_to_part[jez_name]} e {pf.name}"
+            )
+            seen_jez_to_part[jez_name] = pf.name
+            seq_list = df_part.filter(pl.col("source_jez_file") == jez_name)["file_seq"].to_list()
+            assert seq_list == list(range(1, len(seq_list) + 1))
+
+    assert len(seen_jez_to_part) == 6
+    assert sum_rows == expected_total_lines
+
+    # Leitura Hive multi-part nativa via DuckDB
+    glob_expr = str(exports_dir / "fact_urna_logs" / "**" / "*.parquet")
+    with duckdb.connect(":memory:") as con:
+        duck_row = con.execute(
+            f"SELECT COUNT(*), COUNT(DISTINCT source_jez_file) "
+            f"FROM read_parquet('{glob_expr}', hive_partitioning=true)"
+        ).fetchone()
+    assert duck_row == (expected_total_lines, 6)
+
+    # Verifica cumprimento estrito do teto quando cada .jez cabe no limite configurado (32 KB)
+    _build_multi_jez_zip(zip_path, jez_count=6, lines_per_jez=600)
+    expected_600 = 6 * 600
+    cap_32k = 32 * 1024
+    res_32k = ingest_partition(
+        election_year=2026,
+        turn=1,
+        uf="AC",
+        staging_dir=staging_dir,
+        exports_dir=exports_dir,
+        manifest_path=manifest_path,
+        max_jez_files=None,
+        skip_existing=False,
+        force_refresh=True,
+        max_part_size_bytes=cap_32k,
+    )
+    assert res_32k["part_files_count"] >= 2
+    assert res_32k["parquet_row_count"] == expected_600
+    parts_32k = list_parts(part_dir)
+    assert all(p.stat().st_size <= cap_32k for p in parts_32k), (
+        f"Part files exceeded {cap_32k}: {[p.stat().st_size for p in parts_32k]}"
+    )
+
+    # Re-ingestão com teto de 128 MB deve consolidar para 1 arquivo e remover part-1..part-N órfãos
+    _build_multi_jez_zip(zip_path, jez_count=6, lines_per_jez=120)
+    res_collapsed = ingest_partition(
+        election_year=2026,
+        turn=1,
+        uf="AC",
+        staging_dir=staging_dir,
+        exports_dir=exports_dir,
+        manifest_path=manifest_path,
+        max_jez_files=None,
+        skip_existing=False,
+        force_refresh=True,
+        max_part_size_bytes=128 * 1024 * 1024,
+    )
+    assert res_collapsed["part_files_count"] == 1
+    collapsed_files = list_parts(part_dir)
+    assert [p.name for p in collapsed_files] == ["part-0.parquet"]
+    assert list(part_dir.glob("*.tmp")) == []
+
+
+def test_oversized_cached_partition_is_resharded_in_place_without_network(
+    nb03_ns: dict[str, Any], tmp_path: Path
+) -> None:
+    """Valida resharding in-place de partição cacheada > max_part_size_bytes sem rede."""
+    ingest_partition = nb03_ns["ingest_uf_turn_partition"]
+    list_parts = nb03_ns["list_partition_parquet_files"]
+    part_dir_fn = nb03_ns["partition_dir_path"]
+
+    staging_dir = tmp_path / "staging"
+    exports_dir = tmp_path / "exports"
+    manifest_path = exports_dir / "_checkpoints" / "manifest.json"
+    zip_path = (
+        staging_dir
+        / "election_year=2026"
+        / "turn=1"
+        / "uf=AC"
+        / "bu_imgbu_logjez_rdv_vscmr_2026_1t_AC.zip"
+    )
+    expected_total_lines = _build_multi_jez_zip(zip_path, jez_count=6, lines_per_jez=120)
+
+    res_single = ingest_partition(
+        election_year=2026,
+        turn=1,
+        uf="AC",
+        staging_dir=staging_dir,
+        exports_dir=exports_dir,
+        manifest_path=manifest_path,
+        max_jez_files=None,
+        skip_existing=True,
+        force_refresh=False,
+        max_part_size_bytes=128 * 1024 * 1024,
+    )
+    assert res_single["part_files_count"] == 1
+    assert res_single["cached"] is False
+    assert list(staging_dir.glob("*")) == []
+
+    class _ForbidNetworkClient:
+        def get(self, *args: Any, **kwargs: Any) -> Any:
+            raise AssertionError("Nenhuma requisição HTTP deve ocorrer durante resharding local!")
+
+        def head(self, *args: Any, **kwargs: Any) -> Any:
+            raise AssertionError("Nenhuma requisição HEAD deve ocorrer durante resharding local!")
+
+        def stream(self, *args: Any, **kwargs: Any) -> Any:
+            raise AssertionError("Nenhum stream HTTP deve ocorrer durante resharding local!")
+
+        def close(self) -> None:
+            pass
+
+    res_resharded = ingest_partition(
+        election_year=2026,
+        turn=1,
+        uf="AC",
+        staging_dir=staging_dir,
+        exports_dir=exports_dir,
+        manifest_path=manifest_path,
+        max_jez_files=None,
+        skip_existing=True,
+        force_refresh=False,
+        max_part_size_bytes=2048,
+        client=_ForbidNetworkClient(),
+    )
+
+    assert res_resharded["cached"] is True
+    assert res_resharded["part_files_count"] >= 2
+    assert res_resharded["parquet_row_count"] == expected_total_lines
+    assert res_resharded["max_part_size_bytes"] == 2048
+
+    part_dir = part_dir_fn(exports_dir, 2026, 1, "AC")
+    part_files = list_parts(part_dir)
+    assert len(part_files) == res_resharded["part_files_count"]
+
+    seen_jez: set[str] = set()
+    total_rows = 0
+    for pf in part_files:
+        df_part = pl.read_parquet(pf)
+        assert df_part.columns == nb03_ns["FACT_URNA_LOGS_COLUMNS"]
+        total_rows += df_part.height
+        part_jez = set(df_part["source_jez_file"].unique().to_list())
+        assert seen_jez.isdisjoint(part_jez)
+        seen_jez.update(part_jez)
+
+    assert len(seen_jez) == 6
+    assert total_rows == expected_total_lines
+
+    # Chamada idempotente subsequente com o mesmo teto não reescreve arquivos
+    mtimes_before = [p.stat().st_mtime_ns for p in part_files]
+    res_cached = ingest_partition(
+        election_year=2026,
+        turn=1,
+        uf="AC",
+        staging_dir=staging_dir,
+        exports_dir=exports_dir,
+        manifest_path=manifest_path,
+        max_jez_files=None,
+        skip_existing=True,
+        force_refresh=False,
+        max_part_size_bytes=2048,
+        client=_ForbidNetworkClient(),
+    )
+    assert res_cached["cached"] is True
+    assert [p.stat().st_mtime_ns for p in part_files] == mtimes_before
+
 
