@@ -1,5 +1,17 @@
 """Submódulo de extração em streaming, parsing estrutural e catalogação dos logs da urna (.jez)."""
 
+from tse_analysis.logs.carryover import (
+    RESOLUTION_METHODS,
+    SILVER_FACT_URNA_EVENT_SCHEMA,
+    SILVER_PARSER_VERSION,
+    TURN1_HISTORY_SCHEMA,
+    CarryoverFilterStats,
+    extract_turn1_shard_history,
+    merge_turn1_history,
+    scan_turn1_urna_history,
+    strip_turn1_carryover,
+    transform_bronze_shard_to_silver,
+)
 from tse_analysis.logs.event_catalog import (
     ALLOWED_EXTRACTOR_FIELDS,
     MALFORMED_LINE_CODE,
@@ -9,8 +21,10 @@ from tse_analysis.logs.event_catalog import (
     EventCatalog,
     EventCatalogValidationError,
     EventPattern,
+    TurnBoundaryPatterns,
     classify_log_message,
     load_event_catalog,
+    load_event_catalog_from_string,
 )
 from tse_analysis.logs.jez_reader import (
     SEVEN_ZIP_MAGIC,
@@ -50,6 +64,7 @@ from tse_analysis.logs.materializer import (
 
 __all__ = [
     "ALLOWED_EXTRACTOR_FIELDS",
+    "CarryoverFilterStats",
     "ClassificationResult",
     "EventCatalog",
     "EventCatalogValidationError",
@@ -62,8 +77,13 @@ __all__ = [
     "MALFORMED_LINE_CODE",
     "ParsedLogEvent",
     "REQUIRED_EVENT_CODES",
+    "RESOLUTION_METHODS",
     "SEVEN_ZIP_MAGIC",
+    "SILVER_FACT_URNA_EVENT_SCHEMA",
+    "SILVER_PARSER_VERSION",
     "SectionTurnContext",
+    "TURN1_HISTORY_SCHEMA",
+    "TurnBoundaryPatterns",
     "UNKNOWN_EVENT_CODE",
     "UfBatchMaterializationReport",
     "ZIP_MAGIC",
@@ -76,9 +96,12 @@ __all__ = [
     "events_to_pyarrow",
     "extract_jez_events",
     "extract_section_bundle_events",
+    "extract_turn1_shard_history",
     "fetch_remote_jez_by_range",
     "iter_parsed_log_lines",
     "load_event_catalog",
+    "load_event_catalog_from_string",
+    "merge_turn1_history",
     "parse_log_line",
     "parse_log_lines",
     "parse_section_keys_from_filename",
@@ -86,6 +109,9 @@ __all__ = [
     "read_jez_log_lines",
     "read_jez_member_bytes",
     "sanitize_raw_log_line_for_preview",
+    "scan_turn1_urna_history",
     "sort_log_member_names",
+    "strip_turn1_carryover",
+    "transform_bronze_shard_to_silver",
     "write_fact_urna_event_partition",
 ]

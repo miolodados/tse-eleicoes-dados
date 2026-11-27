@@ -57,7 +57,9 @@ Toda tabela Silver deve documentar:
 - tratamento de ausências, ambiguidades e registros não classificados;
 - limitações conhecidas.
 
-**Exemplos planejados:** `fact_urna_event`, derivada de `fact_urna_logs), e `fact_voting_session`, reconstruída a partir dos eventos interpretados. Esses nomes representam entregas planejadas até que sejam efetivamente implementadas e publicadas.
+**Exemplos planejados:** `fact_urna_event`, derivada de `fact_urna_logs`, e `fact_voting_session`, reconstruída a partir dos eventos interpretados. Esses nomes representam entregas planejadas até que sejam efetivamente implementadas e publicadas.
+
+Na conversão Bronze → Silver de `fact_urna_event`, partições `turn=1` são preservadas 1:1, enquanto partições `turn=2` passam por remoção determinística e imune a *clock drift* do prefixo de carryover do 1º turno (quando a urna física foi reutilizada). A resolução prioriza marcadores estruturais de ciclo de vida (`turn_boundary_patterns` ordenados por `file_seq`) e histórico de `urna_serial` do 1º turno (`t1_max_file_seq`), recorrendo a corte temporal apenas como fallback em timestamps válidos sem *clock drift*. Registros com reset de relógio da BIOS são sinalizados com `is_clock_drift = True` e retidos integralmente, mantendo a Bronze 1:1 imutável.
 
 Uma sessão reconstruída é uma interpretação dos registros disponíveis, não um fato diretamente observado. Métricas temporais devem descrever exatamente o intervalo observado e não ser apresentadas como duração total de votação ou atendimento sem evidência.
 

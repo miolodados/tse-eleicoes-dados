@@ -84,6 +84,94 @@ class EventPattern:
 
 
 @dataclass(frozen=True, slots=True)
+class TurnBoundaryPatterns:
+    """Padrões regex (compatíveis com Rust/RE2 e Python re) para fronteira de 1º/2º turno."""
+
+    turn1_init: str
+    turn2_init: str
+    boot_header: str
+    turn1_close: str
+    compiled_turn1_init: re.Pattern[str]
+    compiled_turn2_init: re.Pattern[str]
+    compiled_boot_header: re.Pattern[str]
+    compiled_turn1_close: re.Pattern[str]
+
+
+_DEFAULT_TURN_BOUNDARY_RAW: dict[str, str] = {
+    "turn1_init": (
+        r"(?i)(?:iniciando\s+aplica[cç][aã]o\s*[-–:]\s*1[º°o]?\s*turno"
+        r"|turno(?:\s+da\s+ue)?\s*[:=\-]\s*\[?1\]?(?:\D|$)"
+        r"|\b1[º°o]\s*turno\b|\bprimeiro\s+turno\b"
+        r"|\bpleito\s*[:=\-]?\s*\[?0?3220\]?(?:\D|$)|\bo03220[a-z]{2})"
+    ),
+    "turn2_init": (
+        r"(?i)(?:iniciando\s+aplica[cç][aã]o\s*[-–:]\s*2[º°o]?\s*turno"
+        r"|turno(?:\s+da\s+ue)?\s*[:=\-]\s*\[?2\]?(?:\D|$)"
+        r"|\b2[º°o]\s*turno\b|\bsegundo\s+turno\b"
+        r"|\bpleito\s*[:=\-]?\s*\[?0?3221\]?(?:\D|$)|\bo03221[a-z]{2})"
+    ),
+    "boot_header": r"(?i)(?:in[ií]cio\s+das\s+opera[cç][oõ]es\s+do\s+logd|logd\s+iniciado)",
+    "turn1_close": (
+        r"(?i)(?:encerramento\s+da\s+(?:vota[cç][aã]o|se[cç][aã]o)"
+        r"|vota[cç][aã]o\s+encerrada|se[cç][aã]o\s+encerrada"
+        r"|emiss[aã]o\s+do\s+boletim\s+de\s+urna"
+        r"|gerando\s+arquivo\s+de\s+resultado\s*\[(?:imgbu\.dat|log\.jez)\])"
+    ),
+}
+
+
+def _validate_and_build_turn_boundary_patterns(raw: Any) -> TurnBoundaryPatterns:
+    if raw is None:
+        raw_map = dict(_DEFAULT_TURN_BOUNDARY_RAW)
+    elif isinstance(raw, dict):
+        raw_map = {**_DEFAULT_TURN_BOUNDARY_RAW, **{str(k): str(v) for k, v in raw.items()}}
+    else:
+        raise EventCatalogValidationError(
+            "Campo 'turn_boundary_patterns' no catálogo deve ser um mapeamento YAML."
+        )
+
+    compiled: dict[str, re.Pattern[str]] = {}
+    patterns: dict[str, str] = {}
+    for key in ("turn1_init", "turn2_init", "boot_header", "turn1_close"):
+        regex_str = str(raw_map.get(key, "")).strip()
+        if not regex_str:
+            raise EventCatalogValidationError(
+                f"Padrão de fronteira '{key}' em 'turn_boundary_patterns' não pode ser vazio."
+            )
+        try:
+            pat = re.compile(regex_str)
+        except re.error as exc:
+            raise EventCatalogValidationError(
+                f"Expressão regular inválida em 'turn_boundary_patterns.{key}': {exc}"
+            ) from exc
+        for group_name in pat.groupindex:
+            lowered_group = group_name.lower()
+            if any(token in lowered_group for token in FORBIDDEN_EXTRACTOR_TOKENS):
+                raise EventCatalogValidationError(
+                    f"Padrão 'turn_boundary_patterns.{key}' declara grupo proibido "
+                    f"'{group_name}' (violação de política zero-PII/zero-texto-livre)."
+                )
+        patterns[key] = regex_str
+        compiled[key] = pat
+
+    return TurnBoundaryPatterns(
+        turn1_init=patterns["turn1_init"],
+        turn2_init=patterns["turn2_init"],
+        boot_header=patterns["boot_header"],
+        turn1_close=patterns["turn1_close"],
+        compiled_turn1_init=compiled["turn1_init"],
+        compiled_turn2_init=compiled["turn2_init"],
+        compiled_boot_header=compiled["boot_header"],
+        compiled_turn1_close=compiled["turn1_close"],
+    )
+
+
+def default_turn_boundary_patterns() -> TurnBoundaryPatterns:
+    """Retorna os padrões padrão compilados de fronteira de turno."""
+    return _validate_and_build_turn_boundary_patterns(None)
+
+
+@dataclass(frozen=True, slots=True)
 class EventCatalog:
     """Catálogo declarativo compilado para classificação de eventos do Ecossistema da Urna."""
 
@@ -91,6 +179,9 @@ class EventCatalog:
     fallback_event_code: str
     malformed_event_code: str
     patterns: tuple[EventPattern, ...]
+    turn_boundary_patterns: TurnBoundaryPatterns = field(
+        default_factory=default_turn_boundary_patterns
+    )
 
     @property
     def event_codes(self) -> frozenset[str]:
@@ -231,6 +322,61 @@ def _validate_and_build_pattern(raw: Any, seen_pattern_ids: set[str]) -> EventPa
     )
 
 
+def load_event_catalog_from_payload(
+    payload: Any,
+    *,
+    require_all_standard_codes: bool = True,
+) -> EventCatalog:
+    """Compila e valida o catálogo a partir de um dicionário YAML já carregado."""
+    if not isinstance(payload, dict):
+        raise EventCatalogValidationError(
+            "O conteúdo de event_catalog.yml deve ser um objeto YAML raiz."
+        )
+
+    raw_patterns = payload.get("patterns")
+    if not isinstance(raw_patterns, list) or not raw_patterns:
+        raise EventCatalogValidationError(
+            "O catálogo de eventos deve conter uma lista não-vazia em 'patterns'."
+        )
+
+    seen_ids: set[str] = set()
+    patterns = tuple(_validate_and_build_pattern(item, seen_ids) for item in raw_patterns)
+    turn_boundary_patterns = _validate_and_build_turn_boundary_patterns(
+        payload.get("turn_boundary_patterns")
+    )
+
+    catalog = EventCatalog(
+        schema_version=str(payload.get("schema_version", "1.0")),
+        fallback_event_code=str(payload.get("fallback_event_code", UNKNOWN_EVENT_CODE)),
+        malformed_event_code=str(payload.get("malformed_event_code", MALFORMED_LINE_CODE)),
+        patterns=patterns,
+        turn_boundary_patterns=turn_boundary_patterns,
+    )
+
+    if require_all_standard_codes:
+        present_codes = catalog.event_codes
+        missing = [code for code in REQUIRED_EVENT_CODES if code not in present_codes]
+        if missing:
+            raise EventCatalogValidationError(
+                f"Catálogo de eventos incompleto. Códigos obrigatórios ausentes: {missing}."
+            )
+
+    return catalog
+
+
+def load_event_catalog_from_string(
+    yaml_str: str,
+    *,
+    require_all_standard_codes: bool = True,
+) -> EventCatalog:
+    """Carrega, compila e valida o catálogo a partir de uma string YAML."""
+    payload = yaml.safe_load(yaml_str)
+    return load_event_catalog_from_payload(
+        payload,
+        require_all_standard_codes=require_all_standard_codes,
+    )
+
+
 def load_event_catalog(
     catalog_path: str | Path | None = None,
     *,
@@ -248,36 +394,10 @@ def load_event_catalog(
     with resolved_path.open("r", encoding="utf-8") as fh:
         payload = yaml.safe_load(fh)
 
-    if not isinstance(payload, dict):
-        raise EventCatalogValidationError(
-            "O conteúdo de event_catalog.yml deve ser um objeto YAML raiz."
-        )
-
-    raw_patterns = payload.get("patterns")
-    if not isinstance(raw_patterns, list) or not raw_patterns:
-        raise EventCatalogValidationError(
-            "O catálogo de eventos deve conter uma lista não-vazia em 'patterns'."
-        )
-
-    seen_ids: set[str] = set()
-    patterns = tuple(_validate_and_build_pattern(item, seen_ids) for item in raw_patterns)
-
-    catalog = EventCatalog(
-        schema_version=str(payload.get("schema_version", "1.0")),
-        fallback_event_code=str(payload.get("fallback_event_code", UNKNOWN_EVENT_CODE)),
-        malformed_event_code=str(payload.get("malformed_event_code", MALFORMED_LINE_CODE)),
-        patterns=patterns,
+    return load_event_catalog_from_payload(
+        payload,
+        require_all_standard_codes=require_all_standard_codes,
     )
-
-    if require_all_standard_codes:
-        present_codes = catalog.event_codes
-        missing = [code for code in REQUIRED_EVENT_CODES if code not in present_codes]
-        if missing:
-            raise EventCatalogValidationError(
-                f"Catálogo de eventos incompleto. Códigos obrigatórios ausentes: {missing}."
-            )
-
-    return catalog
 
 
 @functools.lru_cache(maxsize=1)

@@ -2,7 +2,8 @@ tabela: fact_urna_event
 camada: silver
 status: published
 descricao: Eventos semânticos e operacionais da urna eletrônica classificados deterministicamente
-  a partir de fact_urna_logs sem dados pessoais (zero PII).
+  a partir de fact_urna_logs sem dados pessoais (zero PII), com remoção de carryover do
+  1º turno nas partições do 2º turno (clock-drift-safe).
 grao: Um evento operacional da urna eletrônica ordenado cronologicamente por timestamp
   e sequência.
 chaves_naturais:
@@ -43,6 +44,10 @@ colunas:
   tipo_kaggle: datetime
   descricao: Data e hora com precisão de microssegundos registrada pelo sistema operacional
     da urna.
+- nome: is_clock_drift
+  tipo_kaggle: boolean
+  descricao: Indicador booleano de clock drift da BIOS (timestamp fora da janela eleitoral
+    esperada, ex. 01/01/1970). Eventos com clock drift são preservados na Silver.
 - nome: has_timestamp_regression
   tipo_kaggle: boolean
   descricao: Indicador booleano de anomalia ou regressão temporal em relação ao evento

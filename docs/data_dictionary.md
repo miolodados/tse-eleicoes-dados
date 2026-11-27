@@ -94,9 +94,9 @@ Todas as tabelas refletem **fielmente o formato original da fonte (1:1)** em **P
 ## 4. Camada Silver (Tabelas Fato Interpretadas e Dimensões Conformadas)
 
 ### 4.1. `fact_urna_event`
-- **Fonte Primária:** `fact_urna_logs` (Bronze) interpretado deterministicamente contra a allowlist de `configs/event_catalog.yml` via Notebook `05_silver_fact_urna_event`.
-- **Grão:** Uma linha por evento interpretado (`urna_event`).
-- **Schema (`16 colunas`):**
+- **Fonte Primária:** `fact_urna_logs` (Bronze) interpretado deterministicamente contra a allowlist de `configs/event_catalog.yml` via Notebook `05_silver_fact_urna_event`. Nas partições `turn=2`, o prefixo de carryover do 1º turno em urnas reutilizadas é removido de forma determinística e imune a *clock drift* (via `turn_boundary_patterns` em `file_seq`, histórico de `urna_serial` do 1º turno e fallback de data apenas em timestamps válidos sem drift), mantendo a Bronze 1:1 intacta.
+- **Grão:** Uma linha por evento interpretado (`urna_event`) do respectivo turno.
+- **Schema (`17 colunas`):**
   - `election_year` (`Int16`): Ano da eleição.
   - `turn` (`Int8`): Turno (1 ou 2).
   - `uf` (`String`): Unidade Federativa.
@@ -106,13 +106,14 @@ Todas as tabelas refletem **fielmente o formato original da fonte (1:1)** em **P
   - `urna_serial` (`String`): Número de série da urna.
   - `file_seq` (`Int64`): Sequência monotônica do evento.
   - `raw_timestamp` (`Datetime("us")`): Timestamp original da linha de log.
+  - `is_clock_drift` (`Boolean`): Indicador de *clock drift* da BIOS (timestamp fora da janela eleitoral esperada, ex.: `01/01/1970`); registros com `is_clock_drift = True` são preservados na Silver.
   - `has_timestamp_regression` (`Boolean`): Indicador de regressão temporal.
   - `application` (`String`): Aplicativo de origem (`VOTA`, `GAP`, etc.).
   - `log_level` (`String`): Nível de severidade original.
   - `event_code` (`String`): Família canônica do catálogo (ex.: `SECTION_OPENED`, `VOTER_ENABLED`, `BIOMETRIC_READ_ATTEMPT`, `UNKNOWN_EVENT`).
   - `biometric_attempt_num` (`Int8`): Número da tentativa biométrica (1..127) quando aplicável.
   - `classification_status` (`String`): `"CLASSIFIED"` ou `"UNKNOWN"`.
-  - `parser_version` (`String`): Versão do parser e catálogo de eventos (`1.0.0`).
+  - `parser_version` (`String`): Versão do parser e catálogo de eventos (`1.1.0`).
 
 ### 4.2. `fact_voting_session`
 - **Fonte Primária:** `fact_urna_event` (Silver) reconstruído deterministicamente via máquina de estados v1.0.0 no Notebook `06_silver_fact_voting_session`.
@@ -158,7 +159,7 @@ Gerada no Notebook `08_gold_analytics` a partir das camadas Silver, sem reproces
 | Entidade Origem | Chaves Naturais | Dimensão Conformada | Cardinalidade | Observação |
 |---|---|---|---|---|
 | `fact_urna_logs` | `urna_serial`, `file_seq` | — (Bronze 1:1) | N:1 por urna | Registros tabulados de log |
-| `fact_urna_event` | `urna_serial`, `file_seq` | `fact_urna_logs` | 1:1 exata | Preserva grão e total de linhas |
+| `fact_urna_event` | `urna_serial`, `file_seq` | `fact_urna_logs` | 1:1 (T1) / deduplicada (T2) | Remove prefixo de carryover do 1º turno em `turn=2` |
 | `fact_voting_session` | `mun`, `zona`, `secao`, `urna` | `fact_urna_event` | 1:N eventos | Reconstrução por máquina de estados |
 | `fact_votacao_secao` | `mun`, `zona`, `secao`, `cargo` | `dim_cargo`, `dim_partido` | N:1 | Votação nominal e legenda |
 | `fact_eleitorado_perfil` | `mun`, `zona`, `secao` | `dim_local_votacao_secao` | N:1 | Perfil sociodemográfico |

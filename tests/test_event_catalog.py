@@ -135,3 +135,40 @@ def test_event_catalog_rejects_pii_or_free_text_extractor(tmp_path: Path) -> Non
 
     with pytest.raises(EventCatalogValidationError, match="zero-PII|não permitido"):
         load_event_catalog(path, require_all_standard_codes=False)
+
+
+def test_turn_boundary_patterns_loaded_and_accurate(repo_root: Path) -> None:
+    """Valida que turn_boundary_patterns diferencia marcadores reais do 1º e 2º turno."""
+    catalog = load_event_catalog(repo_root / "configs" / "event_catalog.yml")
+    tbp = catalog.turn_boundary_patterns
+
+    # Padrões positivos de 1º turno
+    assert tbp.compiled_turn1_init.search("Iniciando aplicação - 1º turno") is not None
+    assert tbp.compiled_turn1_init.search("Turno da UE: 1") is not None
+    assert tbp.compiled_turn1_init.search("Pleito: 3220") is not None
+    assert tbp.compiled_turn1_init.search("Arquivo o03220ac0100700090001-log.jez") is not None
+
+    # Padrões positivos de 2º turno
+    assert tbp.compiled_turn2_init.search("Iniciando aplicação - 2º turno") is not None
+    assert tbp.compiled_turn2_init.search("Turno da UE: 2") is not None
+    assert tbp.compiled_turn2_init.search("Pleito: 3221") is not None
+    assert tbp.compiled_turn2_init.search("Arquivo o03221ac0100700090001-log.jez") is not None
+
+    # Nunca deve confundir eventos genéricos de Turno 1 com Turno 2
+    for benign in (
+        "Emissão da Zerésima",
+        "Carga da urna concluída",
+        "Iniciando aplicação - 1º turno",
+        "Turno da UE: 1",
+    ):
+        assert tbp.compiled_turn2_init.search(benign) is None
+
+    assert tbp.compiled_boot_header.search("Início das operações do logd") is not None
+    assert (
+        tbp.compiled_turn1_close.search("Gerando arquivo de resultado [imgbu.dat] + [Término]")
+        is not None
+    )
+    assert (
+        tbp.compiled_turn1_close.search("Gerando arquivo de resultado [log.jez] + [Início]")
+        is not None
+    )

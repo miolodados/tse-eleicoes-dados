@@ -142,3 +142,9 @@ patterns:
     regex: "(?i)(?:encerramento\\s+da\\s+(?:vota[cç][aã]o|se[cç][aã]o)|vota[cç][aã]o\\s+encerrada|se[cç][aã]o\\s+encerrada|emiss[aã]o\\s+do\\s+boletim\\s+de\\s+urna|gerando\\s+arquivo\\s+de\\s+resultado\\s*\\[imgbu\\.dat\\]\\s*\\+\\s*\\[t[eé]rmino\\])"
     extractors: {}
     description: "Encerramento oficial da votação na seção eleitoral e emissão do BU."
+
+turn_boundary_patterns:
+  turn1_init: "(?i)(?:iniciando\\s+aplica[cç][aã]o\\s*[-–:]\\s*1[º°o]?\\s*turno|turno(?:\\s+da\\s+ue)?\\s*[:=\\-]\\s*\\[?1\\]?(?:\\D|$)|\\b1[º°o]\\s*turno\\b|\\bprimeiro\\s+turno\\b|\\bpleito\\s*[:=\\-]?\\s*\\[?0?3220\\]?(?:\\D|$)|\\bo03220[a-z]{2})"
+  turn2_init: "(?i)(?:iniciando\\s+aplica[cç][aã]o\\s*[-–:]\\s*2[º°o]?\\s*turno|turno(?:\\s+da\\s+ue)?\\s*[:=\\-]\\s*\\[?2\\]?(?:\\D|$)|\\b2[º°o]\\s*turno\\b|\\bsegundo\\s+turno\\b|\\bpleito\\s*[:=\\-]?\\s*\\[?0?3221\\]?(?:\\D|$)|\\bo03221[a-z]{2})"
+  boot_header: "(?i)(?:in[ií]cio\\s+das\\s+opera[cç][oõ]es\\s+do\\s+logd|logd\\s+iniciado)"
+  turn1_close: "(?i)(?:encerramento\\s+da\\s+(?:vota[cç][aã]o|se[cç][aã]o)|vota[cç][aã]o\\s+encerrada|se[cç][aã]o\\s+encerrada|emiss[aã]o\\s+do\\s+boletim\\s+de\\s+urna|gerando\\s+arquivo\\s+de\\s+resultado\\s*\\[(?:imgbu\\.dat|log\\.jez)\\])"

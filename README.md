@@ -2,7 +2,7 @@
 
 Produto de dados do Miolo Dados construído a partir de fontes públicas do Tribunal Superior Eleitoral (TSE), com foco inicial nas Eleições 2026 e possibilidade de expansão parametrizada para outros pleitos.
 
-O projeto é estruturado em uma arquitetura de dados em três camadas: **Bronze, Silver e Gold**, com execução e computação integralmente no **Kaggle**. Os contratos e diretrizes estão descritos em [docs/data_architecture.md](docs/data_architecture.md) e no [dicionário de dados](docs/data_dictionary.md).
+O projeto é estruturado em uma arquitetura de dados em três camadas: **Bronze, Silver e Gold**, com notebooks autocontidos executáveis no **Google Colab** (Web UI ou `colab` CLI) e no **Kaggle**. Os contratos e diretrizes estão descritos em [docs/data_architecture.md](docs/data_architecture.md) e no [dicionário de dados](docs/data_dictionary.md).
 
 ---
 
@@ -30,7 +30,7 @@ O projeto é estruturado em uma arquitetura de dados em três camadas: **Bronze,
    └──────────┬───────────┘
                │
                ▼
-   [Dataset Oficial Kaggle: miolodados/tse-eleicoes-dados]
+   [Dataset KaggleHub: daniellmattos/tse-eleicoes-dados-v2 / miolodados/tse-eleicoes-dados]
                ▲
                │ (leitura/consumo)
          [TS-Zé & Analistas]
@@ -38,21 +38,31 @@ O projeto é estruturado em uma arquitetura de dados em três camadas: **Bronze,
 
 | Camada | Responsabilidade | Tabelas | Status |
 |---|---|---|---|
-| **Bronze** | Preservar dados das fontes oficiais em grão nativo 1:1, com salvaguardas de privacidade (mascaramento de identificadores de 5+ dígitos como `<ID_REDACTED>` e omissão de `mac_code`). | 18 tabelas (eletorais, logs, comparecimento, correspondência) | Implementada e auditada |
+| **Bronze** | Preservar dados das fontes oficiais em grão nativo 1:1, com salvaguardas de privacidade (mascaramento de identificadores de 5+ dígitos como `<ID_REDACTED>` e omissão de `mac_code`). | 18 tabelas (eleitorais, logs, comparecimento, correspondência) | Implementada e auditada |
 | **Silver** | Classificar eventos via catálogo declarativo (`fact_urna_event`), reconstruir sessões de votação via máquina de estados (`fact_voting_session`) e conformar dimensões (`dim_election`, `dim_cargo`, `dim_partido`). | 5 tabelas | Implementada e validada |
 | **Gold** | Publicar produtos analíticos com métricas operacionais auditadas (`gold_event_distribution`, `gold_session_completeness`, `gold_biometric_attempts`). | 3 produtos | Implementada e validada |
 
 ---
 
-## 2. Notebooks do Pipeline (Execução 100% no Kaggle)
+## 2. Notebooks do Pipeline (Colab & Kaggle via `kagglehub`)
 
-Todos os notebooks são autocontidos, idempotentes e executados remotamente em Kaggle Kernels usando a GPU/CPU da plataforma:
+Todos os 9 notebooks faseados em [notebooks/](notebooks/README.md) são autocontidos, idempotentes e seguem um contrato único de ciclo de vida via **KaggleHub SDK (`kagglehub>=0.4.0`)**, compatível com **Google Colab** (Web UI e `colab` CLI) e **Kaggle Notebooks**:
+
+1. **Bootstrap Dual-Mode Colab/Headless:** Monta `/content/drive` automaticamente no Colab e resolve `KAGGLE_API_TOKEN` via ambiente, cache seguro (`/root/.config/kaggle/colab_token.env`) ou **Colab Secrets** (`google.colab.userdata`), acionando `kagglehub.login()` apenas em sessões TTY interativas.
+2. **Contrato Unificado de Estado (`DATASET_PATH`) e Staging Local (`STAGING_PATH`):**
+   - `DATASET_HANDLE = os.getenv("KAGGLE_DATASET_HANDLE", "daniellmattos/tse-eleicoes-dados-v2")`
+   - `DATASET_PATH = os.getenv("DATASET_PATH", "/content/drive/MyDrive/tse-eleicoes-dados/data")`
+   - `STAGING_PATH = os.getenv("STAGING_PATH", "/tmp/tse-eleicoes-staging")` (downloads brutos `.zip`/`.jez` e escritas Parquet temporárias ficam no SSD local fora do Drive FUSE).
+3. **Hidratação Condicional (`bootstrap_dataset`):** Se `DATASET_PATH` estiver vazio, baixa automaticamente a versão mais recente de `DATASET_HANDLE` via `kagglehub.dataset_download(handle, output_dir=str(DATASET_PATH), force_download=True)`.
+4. **Higiene Pré-Upload e Publicação Contínua (`kagglehub.dataset_upload()`):** Ao término de cada fase, valida ausência de arquivos temporários/brutos (`.zip`, `.jez`, `.tmp`, `.part`, `.log`) e publica uma nova versão incremental no Kaggle.
+
+Para instruções detalhadas de parâmetros, execução paralela e lições aprendidas, consulte [notebooks/README.md](notebooks/README.md) e [AGENTS.md](AGENTS.md).
 
 | Notebook | Camada | Objetivo | Kernel Kaggle |
 |---|---|---|---|
 | `01_urna_logs_poc` | PoC | PoC de streaming e parser de `.jez` em memória | `daniellmattos/tse-analysis-01-urna-logs-poc` |
 | `02_ingest_electoral_tables` | Bronze | Ingestão das 17 tabelas tabulares 1:1 em Parquet ZSTD | `daniellmattos/tse-analysis-02-ingest-electoral-tables` |
-| `03_ingest_urna_logs_batch` | Bronze | Ingestão em batch particionado dos logs da urna (`fact_urna_logs`) | `daniellmattos/tse-analysis-03-ingest-urna-logs-batch` |
+| `03_ingest_urna_logs_batch` | Bronze | Ingestão em batch particionado de 100% dos logs da urna (`fact_urna_logs`) | `daniellmattos/tse-analysis-03-ingest-urna-logs-batch` |
 | `04_dataset_integrity_and_release` | Bronze | Auditoria de integridade, cobertura e integridade de hashes | `daniellmattos/tse-analysis-04-dataset-integrity-and-release` |
 | `05_silver_fact_urna_event` | Silver | Classificação semântica dos logs da urna em 16 event codes canônicos | `daniellmattos/tse-analysis-05-silver-fact-urna-event` |
 | `06_silver_fact_voting_session` | Silver | Reconstrução de sessões operacionais de votação via máquina de estados v1.0.0 | `daniellmattos/tse-analysis-06-silver-fact-voting-session` |
@@ -62,11 +72,25 @@ Todos os notebooks são autocontidos, idempotentes e executados remotamente em K
 
 ---
 
-## 3. Execução e Atualização via Kaggle CLI
+## 3. Execução via Google Colab CLI, KaggleHub SDK e Kaggle CLI
 
-A execução de ponta a ponta e a publicação de versões ocorrem exclusivamente no Kaggle.
+### 3.1 Execução no Google Colab via CLI (`scripts/run_colab_cli.sh`)
 
-> **Não use** `kaggle datasets version ... --dir-mode zip` neste dataset: ele compacta cada pasta em `.zip`, destrói a estrutura Hive (`election_year=/turn=/uf=`) e remove a navegação de arquivos e colunas no Kaggle. Novas versões de dados devem preservar a árvore de arquivos (procedimento em validação).
+```bash
+# Configure seu token via variável de ambiente (nunca comite segredos no código)
+export KAGGLE_API_TOKEN="<seu-token-kaggle>"
+
+# Executar qualquer fase (01..09) em sessão persistente com mount do Drive e retry automático
+./scripts/run_colab_cli.sh 02 tse-nb02
+./scripts/run_colab_cli.sh 03 tse-nb03
+
+# Consolidação de sessões paralelas sharded (manifest_w*.json -> manifest.json + upload único)
+python3 scripts/merge_sharded_manifests_and_release.py
+```
+
+### 3.2 Execução via Kaggle CLI
+
+> **Não use** `kaggle datasets version ... --dir-mode zip` neste dataset: ele compacta cada pasta em `.zip`, destrói a estrutura Hive (`election_year=/turn=/uf=`) e remove a navegação de arquivos e colunas no Kaggle.
 
 ```bash
 # 1. Executar notebook individual via Kaggle CLI
@@ -87,6 +111,7 @@ kaggle datasets metadata --update -p <pasta_com_dataset-metadata.json> <dono>/<d
 
 ## 4. Dataset no Kaggle e Governança
 
+- **Dataset de Trabalho / Colab:** `daniellmattos/tse-eleicoes-dados-v2` (configurável via `KAGGLE_DATASET_HANDLE`).
 - **Identificador Canônico:** `miolodados/tse-eleicoes-dados`
 - **Identificador Legado (origem):** `daniellmattos/tse-analysis-eleicoes-2026` (mantido como referência de transição).
 - **Consumidores:** Consultam as camadas publicadas diretamente via DuckDB, Polars ou PyArrow; não implementam rotinas de ETL. O TS-Zé consome as tabelas publicadas desta base.
@@ -101,6 +126,8 @@ As fontes são dados públicos abertos disponibilizados pelo TSE. Todas as 7 fam
 
 ```text
 tse-eleicoes-dados/
+├── AGENTS.md                   # Regras de engenharia (sharding <=128MB, Drive FUSE, Colab CLI, DuckDB 2.0)
+├── README.md
 ├── configs/
 │   ├── event_catalog.yml       # Allowlist semântica e regras de classificação de eventos
 │   └── sources.yml             # Catálogo oficial das fontes primárias do TSE
@@ -109,6 +136,7 @@ tse-eleicoes-dados/
 │   ├── source_inventory.md     # Inventário técnico detalhado das fontes
 │   └── data_dictionary.md      # Dicionário de schemas e relacionamentos
 ├── notebooks/
+│   ├── README.md               # Guia completo dos notebooks, Colab CLI, parâmetros e lições aprendidas
 │   ├── 01_urna_logs_poc/
 │   ├── 02_ingest_electoral_tables/
 │   ├── 03_ingest_urna_logs_batch/
@@ -118,6 +146,10 @@ tse-eleicoes-dados/
 │   ├── 07_silver_dimensions/
 │   ├── 08_gold_analytics/
 │   └── 09_release_pipeline/
+├── scripts/
+│   ├── compile_kaggle_metadata.py
+│   ├── merge_sharded_manifests_and_release.py
+│   └── run_colab_cli.sh
 ├── src/
 │   └── tse_analysis/           # Módulos core de inspeção, catálogo e materialização
 └── tests/                      # 135+ testes automatizados (unitários e adversariais)
