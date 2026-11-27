@@ -52,6 +52,7 @@ camadas_padrao:
   section_num: "Número da seção eleitoral"
   urna_serial: "Número de série da urna eletrônica"
   raw_timestamp: "Timestamp com precisão de microssegundos registrado pelo sistema operacional da urna"
+  is_clock_drift: "Booleano indicando clock drift da BIOS (timestamp fora da janela eleitoral esperada)"
   file_seq: "Sequencial do evento dentro do arquivo de log da urna"
   event_code: "Código canônico do evento classificado segundo o catálogo de eventos"
   log_level: "Nível de severidade do log (ex.: INFO, WARN, ERROR)"

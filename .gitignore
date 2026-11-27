@@ -16,7 +16,7 @@ dist/
 .ipynb_checkpoints/
 .DS_Store
 # Logs and Colab outputs
-logs/
+/logs/
 *_output.ipynb
 
 # Secrets and local environment files (never commit credentials)
