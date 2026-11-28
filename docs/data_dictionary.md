@@ -7,7 +7,7 @@ Todas as tabelas refletem **fielmente o formato original da fonte (1:1)** em **P
 - **Tabelas Tabulares e Dimensões:** Mantêm 100% dos arquivos e colunas originais dos CSVs de 2026 do TSE, aproveitando o *dictionary encoding* nativo do Parquet ZSTD para comprimir colunas descritivas repetidas sem perda de fidelidade à fonte.
 - **Comparecimento e Abstenção (`fact_comparecimento_abstencao`):** Incorporada integralmente ao dataset público no schema 1:1 (`redistribution_allowed: true`), considerando a ausência de `license_id` no metadado CKAN como omissão formal do portal para dados públicos abertos do TSE.
 
-> **Como interpretar este dicionário:** a presença de uma tabela e de seu schema neste documento descreve o contrato/inventário conhecido, mas não comprova, isoladamente, que exista um artefato publicado no Kaggle. Para evitar essa ambiguidade, acompanhe separadamente (1) contrato documentado, (2) implementação/testes no GitHub, (3) execução concluída no Kaggle e (4) publicação em uma versão identificável do dataset. A auditoria estática disponível em [bronze_audit.md](bronze_audit.md) registra limitações de evidência operacional; ela não substitui a verificação de uma versão publicada.
+> **Status da publicação v2 (`daniellmattos/tse-eleicoes-dados-v2`, Público, `CC-BY-SA-4.0`):** todas as **28 tabelas** (18 Bronze + 5 Silver + 5 Gold) estão implementadas, executadas em cobertura nacional integral (28 UFs incluindo `ZZ`, 1º e 2º turnos de 2026) e auditadas via `09_release_pipeline.ipynb` (`manifest.json` com SHA-256). O ledger de status publicado e o mapeamento de tabelas para o consumidor **TS-Zé (`miolodados/tsze#8`)** constam na Seção 7 abaixo.
 
 ---
 
@@ -15,11 +15,11 @@ Todas as tabelas refletem **fielmente o formato original da fonte (1:1)** em **P
 
 | Coluna Lógica | Coluna Original TSE | Tipo PyArrow / Polars | Descrição |
 |---|---|---|---|
-| `election_year` | `ANO_ELEICAO` / `AA_ELEICAO` | `int16` / `Int16` | Ano da eleição (`2026`). |
+| `election_year` | `ANO_ELEICAO` / `AA_ELEICAO` | `int16` / `Int16` (`Int32` em `fact_urna_logs`) | Ano da eleição (`2026`). |
 | `turn` | `NR_TURNO` | `int8` / `Int8` | Número do turno (`1` ou `2`). |
 | `uf` | `SG_UF` | `string` / `String` | Sigla da Unidade Federativa (`AC`..`TO`, `BR`, `ZZ`). |
 | `municipio_code` | `CD_MUNICIPIO` | `int32` / `Int32` | Código TSE do município (5 dígitos). |
-| `zone_num` | `NR_ZONA` | `int16` / `Int16` | Número da zona eleitoral (4 dígitos). |
+| `zone_num` | `NR_ZONA` | `int16` / `Int16` (`Int32` em `fact_urna_logs`) | Número da zona eleitoral (4 dígitos). |
 | `section_num` | `NR_SECAO` | `int32` / `Int32` | Número da seção eleitoral (4 dígitos). |
 
 ---
@@ -29,18 +29,19 @@ Todas as tabelas refletem **fielmente o formato original da fonte (1:1)** em **P
 ### 2.1. `fact_urna_logs`
 - **Fonte Primária:** `totalizacao_arquivos_transmitidos` (`https://cdn.tse.jus.br/estatistica/sead/eleicoes/eleicoes2026/arqurnatot/bu_imgbu_logjez_rdv_vscmr_2026_{turn}t_{uf}.zip` $\rightarrow$ arquivos `o<pleito:5><uf:2><mun:5><zona:4><secao:4>-log.jez` $\rightarrow$ `logd.dat` e segmentos rotacionados) e `ecossistema_urna_log_docs` (`https://www.tse.jus.br/eleicoes/eleicoes-2026-content/arquivos/log-do-ecossistema/@@display-file/file/log-do-ecossistema.pdf`).
 - **Grão:** Linha física do arquivo de log da urna (`urna_log_event`), ordenada por `file_seq`.
-- **Schema (`15 colunas`):**
-  - `election_year` (`Int16`): Ano da eleição (`2026`).
+- **Volumetria Integral (2026):** `998.354` arquivos `.jez`, `7.976.857.557` linhas em 56 partições (28 UFs × 2 turnos, `35,58 GB` Bronze total).
+- **Schema físico em Parquet (`15 colunas`):**
+  - `election_year` (`Int32`): Ano da eleição (`2026`).
   - `turn` (`Int8`): Turno (`1` ou `2`).
   - `uf` (`String`): UF (`AC`..`TO`, `ZZ`).
-  - `cd_pleito` (`Int32`): Código do pleito extraído do nome do `.jez` (ex.: `3220` no 1º turno de 2026).
+  - `cd_pleito` (`Int64`): Código do pleito extraído do nome do `.jez` (`3220` no 1º turno e `3221` no 2º turno de 2026).
   - `cd_municipio` (`Int32`): Código TSE do município extraído do nome do `.jez` (ex.: `1015`).
-  - `nr_zona` (`Int16`): Zona eleitoral extraída do nome do `.jez` (ex.: `2`).
+  - `nr_zona` (`Int32`): Zona eleitoral extraída do nome do `.jez` (ex.: `2`).
   - `nr_secao` (`Int32`): Seção eleitoral extraída do nome do `.jez` (ex.: `88`).
   - `source_jez_file` (`String`): Nome do arquivo `.jez` de origem dentro do pacote da UF.
   - `source_log_member` (`String`): Membro interno do `.jez` (`logd.dat`, `logd.dat.1`, etc.).
   - `file_seq` (`Int64`): Número sequencial monotônico da linha dentro do arquivo `.jez` (`1..N`).
-  - `raw_timestamp` (`Datetime("us")`): Data e hora registradas no 1º campo tabulado de `logd.dat` (`DD/MM/YYYY HH:MM:SS`).
+  - `raw_timestamp` (`String`): Data e hora registradas no 1º campo tabulado de `logd.dat` (`DD/MM/YYYY HH:MM:SS`, convertidas para `Datetime("us")` na Silver `fact_urna_event`).
   - `log_level` (`String`): Nível de severidade original do 2º campo tabulado (`INFO`, `ALERTA`, `ERRO`, `DEBUG`).
   - `urna_serial` (`String`): Número de série da urna do 3º campo tabulado (ex.: `"02263093"`).
   - `application` (`String`): Aplicativo emissor do 4º campo tabulado (`LOGD`, `SCUE`, `VOTA`, `GAP`, `RED`, etc.).
@@ -129,28 +130,42 @@ Todas as tabelas refletem **fielmente o formato original da fonte (1:1)** em **P
   - `event_count` (`Int32`): Total de eventos contabilizados na sessão.
   - `state_machine_version` (`String`): Versão da máquina de estados (`1.0.0`).
 
-### 4.3. Dimensões Conformadas Silver
-- **`dim_election`:** `election_year` (`Int16`), `turn` (`Int8`), `election_label` (`String`).
-- **`dim_cargo`:** `cd_cargo` (`Int32`), `ds_cargo` (`String`), `tp_cargo` (`String`).
-- **`dim_partido`:** `cd_partido` (`Int32`), `sg_partido` (`String`), `nm_partido` (`String`).
+### 4.3. Dimensões Conformadas Silver (Schemas Físicos em Parquet)
+- **`dim_election` (`6 colunas`, `2 linhas`):** `election_year` (`Int16`), `turn` (`Int8`), `election_label` (`String`), `election_date_turn1` (`String`), `election_date_turn2` (`String`), `cd_pleito_turn1` (`Int32`).
+- **`dim_cargo` (`2 colunas`, `6 linhas`):** `cd_cargo` (`Int32`), `ds_cargo` (`String`).
+- **`dim_partido` (`3 colunas`, `30 linhas`):** `cd_partido` (`Int32`), `sg_partido` (`String`), `nm_partido` (`String`).
 
 ---
 
-## 5. Camada Gold (Produtos Analíticos e Métricas Operacionais)
+## 5. Camada Gold (Produtos Analíticos e Métricas Operacionais — 5 Tabelas)
 
-Gerada no Notebook `08_gold_analytics` a partir das camadas Silver, sem reprocessar diretamente fontes brutas:
+Gerada no Notebook `08_gold_analytics` a partir das camadas Silver (`fact_urna_event`, `fact_voting_session`) e enriquecida com atributos oficiais das tabelas Bronze (`fact_boletim_urna` filtrado em `CD_CARGO_PERGUNTA = 1`, `dim_local_votacao_secao`, `fact_eleitorado_perfil_secao`, `bridge_correspondencia_efetivada`, `fact_detalhe_votacao_secao`):
 
-### 5.1. `gold_event_distribution`
-- **Grão:** `event_code` $\times$ `turn` $\times$ `uf`.
-- **Métricas:** `event_count` (contagem de ocorrências), `share_pct` (participação percentual sobre os eventos da UF/turno).
+### 5.1. `gold_event_distribution` (`gold/gold_event_distribution.parquet`)
+- **Grão:** `(event_code, turn, uf)`.
+- **Schema (`7 colunas`):** `event_code` (`String`), `turn` (`Int8`), `uf` (`String`), `event_count` (`Int64`), `total_uf_events` (`Int64`), `percentage` (`Float64`), `clock_drift_count` (`Int64`).
 
-### 5.2. `gold_session_completeness`
-- **Grão:** `turn` $\times$ `uf` $\times$ `final_state`.
-- **Métricas:** `session_count` (total de sessões), `total_voter_cycles` (soma de votos computados), `contingency_session_count` (sessões com contingência).
+### 5.2. `gold_session_completeness` (`gold/gold_session_completeness.parquet`)
+- **Grão:** `(turn, uf, final_state)`.
+- **Schema (`13 colunas`):** `turn` (`Int8`), `uf` (`String`), `final_state` (`String`), `session_count` (`Int64`), `total_sessions_uf` (`Int64`), `state_share_pct` (`Float64`), `completion_rate` (`Float64`), `contingency_session_count` (`Int64`), `total_voter_cycles` (`Int64`), `avg_voter_cycles` (`Float64`), `min_voter_cycles` (`Int32`), `max_voter_cycles` (`Int32`), `total_events` (`Int64`).
 
-### 5.3. `gold_biometric_attempts`
-- **Grão:** `turn` $\times$ `uf` $\times$ `biometric_attempt_num`.
-- **Métricas:** `attempt_count` (frequência de cada número de tentativa 1..4+), `cumulative_pct` (taxa de resolução acumulada por tentativa).
+### 5.3. `gold_biometric_attempts` (`gold/gold_biometric_attempts.parquet`)
+- **Grão:** `(turn, uf, biometric_attempt_num)`.
+- **Schema (`8 colunas`):** `turn` (`Int8`), `uf` (`String`), `biometric_attempt_num` (`Int8`), `attempt_count` (`Int64`), `total_attempts_uf` (`Int64`), `percentage` (`Float64`), `cumulative_count` (`Int64`), `cumulative_share` (`Float64`).
+
+### 5.4. `gold_section_turn_summary` (`gold/gold_section_turn_summary.parquet`)
+- **Grão:** `section_turn = (election_year, turn, uf, municipio_code, zone_num, section_num)` (~`998 mil` linhas, arquivo único `<= 128 MB`).
+- **Propósito:** Fato analítico central projetado para consumo sub-100ms pelo **TS-Zé (`miolodados/tsze#8`)** em DuckDB no Kaggle Free Tier, evitando varreduras sobre os `4,95 bilhões` de eventos.
+- **Colunas (`46 colunas`):**
+  - *Chaves e geografia:* `election_year` (`Int16`), `turn` (`Int8`), `uf` (`String`), `municipio_code` (`Int32`), `municipio_name` (`String`), `zone_num` (`Int16`), `section_num` (`Int32`), `local_votacao_num` (`Int32`), `local_votacao_name` (`String`), `latitude` (`Float64`), `longitude` (`Float64`).
+  - *Métricas operacionais e biométricas (Silver):* `urna_count` (`Int32`), `session_final_state` (`String`), `all_sessions_complete` (`Boolean`), `has_contingency` (`Boolean`), `has_clock_drift` (`Boolean`), `has_timestamp_regression` (`Boolean`), `first_event_ts` (`Datetime("us")`), `last_event_ts` (`Datetime("us")`), `observed_duration_sec` (`Int64` — nulo quando `has_clock_drift = True`), `total_events` (`Int64`), `classified_events` (`Int64`), `unknown_events` (`Int64`), `voter_enabled_events` (`Int64`), `voter_cycles` (`Int64`), `biometric_attempt_events` (`Int64`), `biometric_recognized_events` (`Int64`), `biometric_not_recognized_events` (`Int64`), `no_biometric_registered_events` (`Int64`), `manual_enable_events` (`Int64`), `inactivity_timeout_events` (`Int64`), `invalid_key_events` (`Int64`), `biometric_recognition_rate_pct` (`Float64`), `manual_enable_rate_pct` (`Float64`).
+  - *Comparecimento oficial e hardware (Bronze `fact_boletim_urna` `CD_CARGO_PERGUNTA=1` + `fact_detalhe_votacao_secao`):* `qt_aptos` (`Int64`), `qt_comparecimento` (`Int64`), `qt_abstencoes` (`Int64`), `qt_elei_biom_sem_habilitacao` (`Int64`), `turnout_rate_pct` (`Float64`), `urna_model_desc` (`String`).
+  - *Perfil do eleitorado (Bronze `fact_eleitorado_perfil_secao`):* `qt_eleitores_perfil` (`Int64`), `qt_eleitores_biometria` (`Int64`), `biometria_coverage_pct` (`Float64`), `qt_eleitores_deficiencia` (`Int64`).
+  - *Correspondência / troca de urna (Bronze `bridge_correspondencia_efetivada`):* `corresp_urna_swapped` (`Boolean`), `corresp_divergence_type` (`String`).
+
+### 5.5. `gold_municipality_turn_summary` (`gold/gold_municipality_turn_summary.parquet`)
+- **Grão:** `(election_year, turn, uf, municipio_code)` (~`11 mil` linhas, `< 1 MB`).
+- **Colunas (`27 colunas`):** `election_year`, `turn`, `uf`, `municipio_code`, `municipio_name`, `section_count`, `closed_section_count`, `urna_swapped_count`, `clock_drift_section_count`, `qt_aptos`, `qt_comparecimento`, `qt_abstencoes`, `turnout_rate_pct`, `voter_cycles`, `total_events`, `biometric_attempt_events`, `biometric_recognized_events`, `manual_enable_events`, `inactivity_timeout_events`, `invalid_key_events`, `biometric_recognition_rate_pct`, `manual_enable_rate_pct`, `avg_observed_duration_sec`, `qt_eleitores_perfil`, `qt_eleitores_biometria`, `biometria_coverage_pct`, `qt_eleitores_deficiencia`.
 
 ---
 
@@ -158,9 +173,40 @@ Gerada no Notebook `08_gold_analytics` a partir das camadas Silver, sem reproces
 
 | Entidade Origem | Chaves Naturais | Dimensão Conformada | Cardinalidade | Observação |
 |---|---|---|---|---|
-| `fact_urna_logs` | `urna_serial`, `file_seq` | — (Bronze 1:1) | N:1 por urna | Registros tabulados de log |
-| `fact_urna_event` | `urna_serial`, `file_seq` | `fact_urna_logs` | 1:1 (T1) / deduplicada (T2) | Remove prefixo de carryover do 1º turno em `turn=2` |
-| `fact_voting_session` | `mun`, `zona`, `secao`, `urna` | `fact_urna_event` | 1:N eventos | Reconstrução por máquina de estados |
+| `fact_urna_logs` | `urna_serial`, `file_seq` | — (Bronze 1:1) | N:1 por urna | Registros tabulados de log (7,98B linhas) |
+| `fact_urna_event` | `urna_serial`, `file_seq` | `fact_urna_logs` | 1:1 (T1) / deduplicada (T2) | Remove prefixo de carryover do 1º turno em `turn=2` (4,95B linhas) |
+| `fact_voting_session` | `mun`, `zona`, `secao`, `urna` | `fact_urna_event` | 1:N eventos | Reconstrução por máquina de estados (998.355 sessões) |
+| `gold_section_turn_summary` | `election_year`, `turn`, `uf`, `mun`, `zona`, `secao` | `dim_election`, `dim_local_votacao_secao` | 1:1 por `section_turn` | Fato central Gold para consumo TS-Zé |
+| `gold_municipality_turn_summary` | `election_year`, `turn`, `uf`, `mun` | `dim_election` | N:1 seções | Agregação municipal de `gold_section_turn_summary` |
 | `fact_votacao_secao` | `mun`, `zona`, `secao`, `cargo` | `dim_cargo`, `dim_partido` | N:1 | Votação nominal e legenda |
-| `fact_eleitorado_perfil` | `mun`, `zona`, `secao` | `dim_local_votacao_secao` | N:1 | Perfil sociodemográfico |
+| `fact_eleitorado_perfil_secao` | `mun`, `zona`, `secao` | `dim_local_votacao_secao` | N:1 | Perfil sociodemográfico |
+
+---
+
+## 7. Ledger de Publicação (28 Tabelas) e Guia de Consumo para `miolodados/tsze`
+
+### 7.1. Identidade Canônica no Kaggle
+- **Dataset Handle:** `daniellmattos/tse-eleicoes-dados-v2` (Público, licença `CC-BY-SA-4.0`, release `v2` com `manifest.json` SHA-256).
+- **Status das Camadas:** 18 Bronze (`published`, 100% integral), 5 Silver (`published`, 7/7 assertions aprovadas), 5 Gold (`published`, reconciliadas contra Silver e Bronze).
+
+### 7.2. Mapeamento de Nomes (Rascunho `tsze#8` $\rightarrow$ Tabela Publicada)
+
+| Referência em `tsze#8` / Discussões | Tabela Publicada no Dataset v2 | Caminho Relativo no Kaggle |
+|---|---|---|
+| Fato central `section_turn` | `gold_section_turn_summary` | `gold/gold_section_turn_summary.parquet` |
+| Agregado municipal × turno | `gold_municipality_turn_summary` | `gold/gold_municipality_turn_summary.parquet` |
+| Distribuição de eventos | `gold_event_distribution` | `gold/gold_event_distribution.parquet` |
+| Completude de sessões | `gold_session_completeness` | `gold/gold_session_completeness.parquet` |
+| Tentativas biométricas | `gold_biometric_attempts` | `gold/gold_biometric_attempts.parquet` |
+| Eventos de urna classificados | `fact_urna_event` | `silver/fact_urna_event/election_year=2026/turn={1,2}/uf={UF}/*.parquet` |
+| Sessões reconstruídas | `fact_voting_session` | `silver/fact_voting_session/election_year=2026/turn={1,2}/uf={UF}/*.parquet` |
+| Dimensões conformadas | `dim_election`, `dim_cargo`, `dim_partido` | `silver/{tabela}/**/*.parquet` |
+| Comparecimento oficial 100% T1+T2 | `fact_boletim_urna` (`CD_CARGO_PERGUNTA = 1`) | `fact_boletim_urna/election_year=2026/turn={1,2}/uf={UF}/*.parquet` |
+| Modelo de hardware da urna | `fact_detalhe_votacao_secao` (`DS_MODELO_URNA`) | `fact_detalhe_votacao_secao/election_year=2026/turn={1,2}/uf={UF}/*.parquet` |
+
+### 7.3. Recomendações de Performance DuckDB (Kaggle Free Tier)
+1. **Gold-first:** Consulte `gold/gold_section_turn_summary.parquet` e `gold/gold_municipality_turn_summary.parquet` para 95%+ das perguntas do TS-Zé (latência típica `< 100ms`, `< 200 MB` de RAM).
+2. **Partition pruning em Silver/Bronze:** Sempre filtre explicitamente por `turn` e `uf` (ou direcione o glob `turn=1/uf=SP/*.parquet`) ao consultar `silver/fact_urna_event` (`4,95B` linhas) ou `fact_urna_logs` (`7,98B` linhas).
+3. **DuckDB 2.0:** Use `duckdb.connect(":memory:").execute(sql).fetchall()` / `.pl()` em vez de `.fetchone()` sobre objetos `Relation`.
+4. **Duração de sessão e clock drift:** Utilize `observed_duration_sec` de `gold_section_turn_summary` (que já aplica guarda contra `has_clock_drift = True`, retornando `NULL` em urnas com relógio BIOS 1970).
 

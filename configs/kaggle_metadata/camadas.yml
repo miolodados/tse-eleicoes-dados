@@ -15,23 +15,26 @@ camadas:
     nome: "Camada Silver (Conformada, Enriquecida & Semântica)"
     proposito: >
       Aplica regras de negócio determinísticas sobre a Bronze:
-      1) Parse semântico e categorização dos logs da urna eletrônica em eventos canônicos (fact_urna_event);
+      1) Parse semântico v1.1.0, remoção determinística de carryover do 1º turno em
+      partições do 2º turno (imune a clock drift de BIOS) e categorização dos logs da
+      urna eletrônica em eventos canônicos (fact_urna_event);
       2) Reconstrução de sessões eleitorais via máquina de estados v1.0.0 (fact_voting_session);
       3) Dimensões conformadas consolidadas (dim_election, dim_cargo, dim_partido).
     garantias:
       - "Zero PII garantido por catálogo semântico estrito."
-      - "Integridade referencial e unicidade de chaves primárias validadas."
+      - "Integridade referencial (0,00% órfãos) e unicidade de chaves primárias validadas."
       - "Controle de versão de parsers e máquinas de estado em cada registro."
+      - "Preservação de registros com clock drift da BIOS sinalizados por is_clock_drift."
 
   gold:
     nome: "Camada Gold (Agregações Analíticas de Negócio)"
     proposito: >
-      Tabelas analíticas pré-computadas otimizadas para consumo direto por ferramentas
-      de BI, dashboards (Streamlit, PowerBI) e pesquisadores eleitorais.
-      Permite responder a perguntas complexas sobre comportamento da urna,
-      distribuição de eventos e taxas de completude sem necessidade de processar
-      milhões de linhas brutas.
+      Tabelas analíticas pré-computadas otimizadas para consumo direto em sub-100ms por
+      DuckDB, Polars, aplicações analíticas (como o TS-Zé) e pesquisadores eleitorais,
+      sem necessidade de reprocessar bilhões de linhas brutas.
     tabelas_principais:
-      - "gold_event_distribution: Frequência e proporção de cada evento por UF e turno."
-      - "gold_session_completeness: Taxa de sessões fechadas e estatísticas de ciclos de eleitores."
+      - "gold_event_distribution: Frequência, proporção e contagem de clock drift de cada evento por UF e turno."
+      - "gold_session_completeness: Taxa de sessões fechadas, contingências e estatísticas de ciclos de eleitores."
       - "gold_biometric_attempts: Contagem e distribuição acumulada de tentativas biométricas."
+      - "gold_section_turn_summary: Fato analítico central no grão seção × turno (~998 mil linhas) unindo métricas operacionais/biométricas da urna com comparecimento oficial do BU, perfil do eleitorado, local de votação, modelo da urna e correspondência efetivada."
+      - "gold_municipality_turn_summary: Consolidação analítica no grão município × turno (~11 mil linhas) para mapas, rankings e análises regionais instantâneas."

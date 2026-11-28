@@ -99,43 +99,50 @@ def build_markdown_description(dataset_cfg: dict, camadas_cfg: dict, tables: dic
         "foi omitido na persistência, reduzindo entropia incompressível sem prejuízo ao valor."
     )
     lines.append(
-        "- **Amostragem Representativa:** A tabela `fact_urna_logs` contém uma amostra técnica "
-        "de até 5 arquivos `.jez` por partição para viabilizar exploração analítica no Kaggle."
+        "- **Cobertura Nacional Integral (2026):** O acervo contempla **100% das 28 UFs** "
+        "(incluindo `ZZ` — exterior) nos **1º e 2º turnos**: `998.354` arquivos `.jez` "
+        "(`7,98 bilhões` de linhas Bronze 1:1, `4,95 bilhões` de eventos Silver deduplicados "
+        "com remoção determinística de carryover do 1º turno em `turn=2` e `998.355` sessões "
+        "reconstruídas), além de **5 tabelas Gold** otimizadas para consulta instantânea."
     )
     lines.append("")
     lines.append("---")
     lines.append("")
     lines.append("## 5. Exemplos de Consulta")
     lines.append("")
-    lines.append("### 5.1 Consulta Analítica com DuckDB (Python / SQL)")
+    lines.append("### 5.1 Consulta Analítica com DuckDB (Camada Gold — Sub-100ms)")
     lines.append("```python")
     lines.append("import duckdb")
     lines.append("")
     lines.append("# Consulta analítica direta sobre Parquet na camada Gold")
     lines.append("conn = duckdb.connect()")
     lines.append("query = '''")
-    lines.append("    SELECT event_code, SUM(event_count) as total_eventos")
-    lines.append("    FROM read_parquet('/kaggle/input/tse-analysis-eleicoes-2026/gold/*.parquet')")
-    lines.append("    GROUP BY event_code")
-    lines.append("    ORDER BY total_eventos DESC")
+    lines.append("    SELECT uf, turn, SUM(qt_comparecimento) AS comparecimento,")
+    lines.append("           ROUND(AVG(biometric_recognition_rate_pct), 2) AS taxa_biometria_pct")
+    lines.append(
+        "    FROM read_parquet("
+        "'/kaggle/input/tse-eleicoes-dados-v2/gold/gold_municipality_turn_summary.parquet')"
+    )
+    lines.append("    GROUP BY uf, turn")
+    lines.append("    ORDER BY turn, comparecimento DESC")
     lines.append("    LIMIT 10")
     lines.append("'''")
-    lines.append("df_events = conn.execute(query).pl()")
-    lines.append("print(df_events)")
+    lines.append("df_resumo = conn.execute(query).pl()")
+    lines.append("print(df_resumo)")
     lines.append("```")
     lines.append("")
-    lines.append("### 5.2 Consulta Escalar com Polars")
+    lines.append("### 5.2 Consulta Escalar com Polars (Camada Silver)")
     lines.append("```python")
     lines.append("import polars as pl")
     lines.append("")
     lines.append("# Leitura lazy e agregação sobre fact_voting_session")
     lines.append(
-        "uri = '/kaggle/input/tse-analysis-eleicoes-2026/silver/fact_voting_session/**/*.parquet'"
+        "uri = '/kaggle/input/tse-eleicoes-dados-v2/silver/fact_voting_session/**/*.parquet'"
     )
     lines.append("sessions = pl.scan_parquet(uri)")
     lines.append("resumo = sessions.group_by('final_state').agg(")
     lines.append("    pl.len().alias('total_urnas'),")
-    lines.append("    pl.col('voter_cycles').sum().alias('total_votos')")
+    lines.append("    pl.col('voter_cycles').cast(pl.Int64).sum().alias('total_votos')")
     lines.append(").collect()")
     lines.append("print(resumo)")
     lines.append("```")
@@ -152,7 +159,8 @@ def build_markdown_description(dataset_cfg: dict, camadas_cfg: dict, tables: dic
     lines.append(f"- **Fonte Primária Oficial:** [{inst}]({portal})")
     lines.append(f"- **Repositório do Projeto:** [{curator}]({repo})")
     lines.append(
-        f"- **Licença Declarada:** **{lic}** (Creative Commons Atribuição 4.0 Internacional). "
+        f"- **Licença Declarada:** **{lic}** "
+        "(Creative Commons Atribuição-CompartilhaIgual 4.0 Internacional). "
         "Exige atribuição aos dados abertos do TSE e ao projeto miolodados."
     )
     lines.append("")

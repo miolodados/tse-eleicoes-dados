@@ -1,6 +1,12 @@
 # Auditoria Bronze e prontidão operacional do Kaggle
 
-**Escopo:** inspeção estática do estado de `main` após o merge da arquitetura. Esta auditoria não executou notebooks nem acessou uma publicação Kaggle ao vivo. Portanto, distingue evidência no GitHub de estado operacional ainda não verificado.
+> **Atualização Operacional (Release v2 — Cobertura Nacional Integral Concluída):** Os achados abaixo preservam o registro histórico da auditoria estática inicial (pré-ingestão em lote). Desde então, todas as lacunas listadas foram fechadas e verificadas em produção:
+> - **Cobertura Integral 100% (2026):** `998.354` arquivos `.jez` (`7.976.857.557` linhas Bronze em 56 partições — 28 UFs incluindo `ZZ`, 1º e 2º turnos, `35,58 GB`) + 17 tabelas eleitorais oficiais do TSE.
+> - **Camada Silver (7/7 Assertions Aprovadas):** `fact_urna_event` (`4.954.541.320` linhas em 322 shards `<= 128 MB`, remoção exata de `3.022.316.237` linhas de carryover do 1º turno em `turn=2`), `fact_voting_session` (`998.355` sessões, 0 duplicatas), `dim_election` (2), `dim_cargo` (6), `dim_partido` (30, `0,00%` órfãos).
+> - **Camada Gold Enriquecida (5 tabelas):** `gold_event_distribution`, `gold_session_completeness`, `gold_biometric_attempts`, `gold_section_turn_summary` e `gold_municipality_turn_summary`.
+> - **Publicação Canônica:** `daniellmattos/tse-eleicoes-dados-v2` (Público, licença `CC-BY-SA-4.0`, auditado por `09_release_pipeline.ipynb` com `manifest.json` SHA-256).
+
+**Escopo do registro histórico abaixo:** inspeção estática do estado de `main` após o merge inicial da arquitetura. Esta seção histórica distingue a fotografia inicial no GitHub do estado operacional posteriormente atingido no release v2.
 
 ## Resumo executivo
 
@@ -69,3 +75,8 @@ Não declarei `fact_urna_event` publicada nem promovi o status da Silver.
 - Os testes do repositório não foram executados neste ambiente; a revisão aqui foi estática.
 
 Esses limites são intencionais: a regra operacional do projeto exige que a execução oficial e a publicação aconteçam no Kaggle.
+
+## Atualização Empírica (Execução Real 2026 via Notebook `09_release_pipeline.ipynb`)
+
+- A auditoria integral das **18 tabelas Bronze** (`8,256,264,342` linhas em 1.192 arquivos Parquet) confirmou que 15/18 tabelas apresentam 0 duplicatas nas amostras verificadas, enquanto 3 tabelas demográficas espelhadas 1:1 dos CSVs brutos do TSE contêm múltiplas linhas por combinação demográfica na origem (`fact_eleitorado_perfil_secao`, `fact_eleitorado_perfil_munzona` e `fact_comparecimento_abstencao`, por variação de lote/subtotal na fonte oficial TSE).
+- O pipeline `09_release_pipeline.ipynb` classifica essas 3 ocorrências como `INFO_UPSTREAM_TSE` (informativo não bloqueante na Bronze) e continua exigindo unicidade estrita (`0` duplicatas) em todas as tabelas derivadas **Silver** e **Gold**.

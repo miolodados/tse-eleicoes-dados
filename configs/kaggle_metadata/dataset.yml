@@ -3,9 +3,9 @@
 
 title: "TSE Eleições 2026: Camadas Bronze, Silver e Gold"
 subtitle: "Dados eleitorais oficiais estruturados em Parquet com DuckDB e Polars"
-slug: "daniellmattos/tse-analysis-eleicoes-2026"
+slug: "daniellmattos/tse-eleicoes-dados-v2"
 license: "CC-BY-SA-4.0"
-is_private: true
+is_private: false
 expected_update_frequency: "never"
 
 keywords:
@@ -27,4 +27,4 @@ provenance:
 privacy_and_governance:
   pii_policy: "Zero PII (Personally Identifiable Information). Endereços MAC, IPs e identificadores de eleitores são estritamente redigidos (<ID_REDACTED>) ou descartados na ingestão Bronze."
   lgpd_compliance: "Total conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018) e resoluções normativas do TSE."
-  log_sample_notice: "A tabela fact_urna_logs é amostrada (amostra representativa com até 5 arquivos .jez por partição para viabilidade analítica) conforme docs/bronze_audit.md."
+  coverage_notice: "Cobertura nacional integral das Eleições Gerais de 2026 (28 UFs incluindo ZZ, 1º e 2º turnos): 998.354 arquivos .jez (7,98 bilhões de linhas Bronze; 4,95 bilhões de eventos Silver deduplicados; 998.355 sessões; 5 tabelas Gold analíticas)."

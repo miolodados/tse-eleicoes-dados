@@ -32,6 +32,9 @@ colunas:
 - nome: completion_rate
   tipo_kaggle: number
   descricao: Taxa de fechamento regular de sessões da UF (0 a 100%).
+- nome: contingency_session_count
+  tipo_kaggle: integer
+  descricao: Quantidade de sessões neste estado que registraram ao menos um evento de contingência.
 - nome: total_voter_cycles
   tipo_kaggle: integer
   descricao: Soma total de eleitores que votaram nas sessões deste estado.
@@ -40,10 +43,10 @@ colunas:
   descricao: Média de votos computados por urna.
 - nome: min_voter_cycles
   tipo_kaggle: integer
-  descricao: Menor quantidade de votos registrada em uma urna da amostra.
+  descricao: Menor quantidade de votos registrada em uma urna do grupo.
 - nome: max_voter_cycles
   tipo_kaggle: integer
-  descricao: Maior quantidade de votos registrada em uma urna da amostra.
+  descricao: Maior quantidade de votos registrada em uma urna do grupo.
 - nome: total_events
   tipo_kaggle: integer
   descricao: Total de eventos de log processados nas sessões deste estado.

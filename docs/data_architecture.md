@@ -105,11 +105,11 @@ Cada publicação deve permitir identificar a camada, tabela, parâmetros e vers
 
 ### Identidade do dataset publicado
 
-O identificador canônico do dataset no Kaggle deve acompanhar o nome do repositório: **`miolodados/tse-eleicoes-dados`**. O identificador legado `miolodados/tse-analises-eleicoes` deve ser tratado apenas como referência histórica durante a migração, não como destino de novas publicações.
+O identificador público canônico publicado no Kaggle para a entrega v2 das Eleições 2026 é **`daniellmattos/tse-eleicoes-dados-v2`** (Público, licença `CC-BY-SA-4.0`, 28 tabelas: 18 Bronze + 5 Silver + 5 Gold, com `manifest.json` SHA-256). O identificador planejado anteriormente sob organização (`miolodados/tse-eleicoes-dados`) e o legado (`daniellmattos/tse-analysis-eleicoes-2026`) devem ser tratados apenas como referências históricas; consumidores externos (incluindo `miolodados/tsze`) devem fixar `daniellmattos/tse-eleicoes-dados-v2`.
 
-A migração do identificador deve ser coordenada com a atualização de notebooks, configurações, documentação, comandos Kaggle CLI e consumidores externos. A issue de release deve validar a publicação e o consumo pelo identificador novo antes de considerar a migração concluída.
+> **Execução operacional (Colab High-RAM → Google Drive → KaggleHub):** Devido ao volume nacional integral (`998.354` arquivos `.jez`, `7,98 bilhões` de linhas Bronze, `~50 GB` comprimidos em Parquet ZSTD), os notebooks faseados (`01`–`09`) operam sobre `DATASET_PATH` persistido em Google Drive em VMs Colab High-RAM com staging local `/tmp/tse-eleicoes-staging/` (sem sobrescrita in-place em FUSE) e publicação versionada via `kagglehub.dataset_upload()`.
 
-## 6. Fluxo operacional: GitHub → Kaggle → Kaggle Dataset
+## 6. Fluxo operacional: GitHub → Colab/Kaggle → Kaggle Dataset
 
 **GitHub é o repositório de desenvolvimento e versionamento. Kaggle é o ambiente oficial de execução e publicação.**
 

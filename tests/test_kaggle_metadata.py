@@ -35,7 +35,8 @@ def test_kaggle_length_and_field_constraints():
 
     assert 6 <= len(title) <= 50, f"Title length {len(title)} fora do limite [6, 50]"
     assert 20 <= len(subtitle) <= 80, f"Subtitle length {len(subtitle)} fora do limite [20, 80]"
-    assert data["isPrivate"] is True, "Dataset deve ser privado conforme decisão do usuário"
+    assert data["id"] == "daniellmattos/tse-eleicoes-dados-v2"
+    assert data["isPrivate"] is False, "Dataset deve ser público para consumo downstream (TS-Zé)"
     assert data["expectedUpdateFrequency"] == "never"
     assert any(lic.get("name") in ("CC-BY-4.0", "CC-BY-SA-4.0") for lic in data["licenses"])
 
@@ -53,12 +54,16 @@ def test_markdown_description_content():
     assert "DuckDB" in desc
     assert "Polars" in desc
     assert "Tribunal Superior Eleitoral" in desc
+    assert "gold_section_turn_summary" in desc
+    assert "gold_municipality_turn_summary" in desc
+    assert "tse-eleicoes-dados-v2" in desc
+    assert "amostra técnica" not in desc
 
 
 def test_table_yamls_consistency():
-    """Valida se todos os 25 arquivos de tabela possuem os campos obrigatórios."""
+    """Valida se todos os 27+ arquivos de tabela possuem os campos obrigatórios."""
     yaml_files = list(TABLES_DIR.glob("*.yml"))
-    assert len(yaml_files) >= 25, f"Esperado pelo menos 25 tabelas, encontrado {len(yaml_files)}"
+    assert len(yaml_files) >= 27, f"Esperado pelo menos 27 tabelas, encontrado {len(yaml_files)}"
 
     for yml in yaml_files:
         with open(yml, encoding="utf-8") as f:

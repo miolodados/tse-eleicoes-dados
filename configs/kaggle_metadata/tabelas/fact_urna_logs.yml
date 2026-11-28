@@ -1,17 +1,18 @@
 tabela: fact_urna_logs
 camada: bronze
 status: published
-descricao: Registros tabulados dos arquivos de log de transmissão da urna eletrônica
+descricao: Registros tabulados integrais (100% de cobertura nacional — 998.354 arquivos
+  .jez, 7,98 bilhões de linhas) dos arquivos de log de transmissão da urna eletrônica
   (logd.dat), com números de 5+ dígitos redigidos para anonimização e conformidade
-  LGPD. Amostra com até 5 arquivos .jez por partição.
+  LGPD.
 grao: Linha física de log da urna ordenada por file_seq.
 chaves_naturais:
 - election_year
 - turn
 - uf
-- municipio_code
-- zone_num
-- section_num
+- cd_municipio
+- nr_zona
+- nr_secao
 - urna_serial
 - file_seq
 particionamento: 'Hive: election_year=2026/turn={1,2}/uf={UF}'

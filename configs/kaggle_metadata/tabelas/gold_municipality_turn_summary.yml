@@ -1,0 +1,96 @@
+tabela: gold_municipality_turn_summary
+camada: gold
+status: published
+descricao: Visão analítica consolidada no grão município × turno (~11 mil linhas),
+  agregando os indicadores operacionais, biométricos, de comparecimento oficial e de
+  substituição de urnas a partir de gold_section_turn_summary para consultas instantâneas.
+grao: Um município por ano, turno e UF (election_year, turn, uf, municipio_code).
+chaves_naturais:
+- election_year
+- turn
+- uf
+- municipio_code
+particionamento: Arquivo único Parquet ZSTD (< 1 MB).
+salvaguardas_privacidade: Métricas agregadas no nível municipal (zero PII).
+colunas:
+- nome: election_year
+  tipo_kaggle: integer
+  descricao: Ano eleitoral oficial (2026).
+- nome: turn
+  tipo_kaggle: integer
+  descricao: Turno eleitoral (1 ou 2).
+- nome: uf
+  tipo_kaggle: string
+  descricao: Sigla da Unidade Federativa (AC..TO e ZZ).
+- nome: municipio_code
+  tipo_kaggle: integer
+  descricao: Código TSE do município.
+- nome: municipio_name
+  tipo_kaggle: string
+  descricao: Nome oficial do município.
+- nome: section_count
+  tipo_kaggle: integer
+  descricao: Total de seções eleitorais observadas no município e turno.
+- nome: closed_section_count
+  tipo_kaggle: integer
+  descricao: Quantidade de seções encerradas regularmente (CLOSED).
+- nome: urna_swapped_count
+  tipo_kaggle: integer
+  descricao: Quantidade de seções com troca de urna detectada na correspondência efetivada.
+- nome: clock_drift_section_count
+  tipo_kaggle: integer
+  descricao: Quantidade de seções com ocorrência de clock drift na BIOS.
+- nome: qt_aptos
+  tipo_kaggle: integer
+  descricao: Total oficial de eleitores aptos no município (BU Presidente).
+- nome: qt_comparecimento
+  tipo_kaggle: integer
+  descricao: Comparecimento oficial consolidado no município (BU Presidente).
+- nome: qt_abstencoes
+  tipo_kaggle: integer
+  descricao: Abstenções oficiais consolidadas no município (BU Presidente).
+- nome: turnout_rate_pct
+  tipo_kaggle: number
+  descricao: Taxa percentual oficial de comparecimento municipal (0 a 100%).
+- nome: voter_cycles
+  tipo_kaggle: integer
+  descricao: Soma de ciclos completos de votação reconstruídos nos logs do município.
+- nome: total_events
+  tipo_kaggle: integer
+  descricao: Soma total de eventos Silver de urna no município e turno.
+- nome: biometric_attempt_events
+  tipo_kaggle: integer
+  descricao: Soma de eventos de tentativa biométrica no município.
+- nome: biometric_recognized_events
+  tipo_kaggle: integer
+  descricao: Soma de reconhecimentos biométricos bem-sucedidos no município.
+- nome: manual_enable_events
+  tipo_kaggle: integer
+  descricao: Soma de habilitações manuais pelo mesário no município.
+- nome: inactivity_timeout_events
+  tipo_kaggle: integer
+  descricao: Soma de eventos de inatividade de 45s no município.
+- nome: invalid_key_events
+  tipo_kaggle: integer
+  descricao: Soma de eventos de tecla indevida/inválida no município.
+- nome: biometric_recognition_rate_pct
+  tipo_kaggle: number
+  descricao: Taxa percentual agregada de reconhecimento biométrico no município (0 a 100%).
+- nome: manual_enable_rate_pct
+  tipo_kaggle: number
+  descricao: Taxa percentual agregada de habilitações manuais sobre ciclos de votação (0 a 100%).
+- nome: avg_observed_duration_sec
+  tipo_kaggle: number
+  descricao: Média municipal da janela observada de sessão em segundos (excluindo seções com clock drift).
+- nome: qt_eleitores_perfil
+  tipo_kaggle: integer
+  descricao: Total de eleitores no perfil sociodemográfico do município.
+- nome: qt_eleitores_biometria
+  tipo_kaggle: integer
+  descricao: Total de eleitores com biometria cadastrada no município.
+- nome: biometria_coverage_pct
+  tipo_kaggle: number
+  descricao: Cobertura percentual cadastral de biometria no município (0 a 100%).
+- nome: qt_eleitores_deficiencia
+  tipo_kaggle: integer
+  descricao: Total de eleitores com deficiência declarada no município.

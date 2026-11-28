@@ -1,0 +1,156 @@
+tabela: gold_section_turn_summary
+camada: gold
+status: published
+descricao: Fato analítico central no grão seção eleitoral × turno (~998 mil linhas),
+  consolidando métricas operacionais e biométricas da urna (Silver) com comparecimento
+  oficial do Boletim de Urna (cargo Presidente), perfil do eleitorado, local de votação
+  georreferenciado, modelo de hardware da urna e divergências de correspondência.
+grao: Uma seção eleitoral por ano e turno (election_year, turn, uf, municipio_code, zone_num, section_num).
+chaves_naturais:
+- election_year
+- turn
+- uf
+- municipio_code
+- zone_num
+- section_num
+particionamento: Arquivo único Parquet ZSTD (~50 MB, abaixo do teto de 128 MB).
+salvaguardas_privacidade: Métricas operacionais, geográficas e demográficas agregadas no nível de seção eleitoral (zero PII).
+colunas:
+- nome: election_year
+  tipo_kaggle: integer
+  descricao: Ano eleitoral oficial (2026).
+- nome: turn
+  tipo_kaggle: integer
+  descricao: Turno eleitoral (1 ou 2).
+- nome: uf
+  tipo_kaggle: string
+  descricao: Sigla da Unidade Federativa (AC..TO e ZZ).
+- nome: municipio_code
+  tipo_kaggle: integer
+  descricao: Código TSE do município.
+- nome: municipio_name
+  tipo_kaggle: string
+  descricao: Nome oficial do município conforme Boletim de Urna / cadastro de locais.
+- nome: zone_num
+  tipo_kaggle: integer
+  descricao: Número da zona eleitoral.
+- nome: section_num
+  tipo_kaggle: integer
+  descricao: Número da seção eleitoral.
+- nome: local_votacao_num
+  tipo_kaggle: integer
+  descricao: Código do local de votação da seção.
+- nome: local_votacao_name
+  tipo_kaggle: string
+  descricao: Nome do local de votação da seção.
+- nome: latitude
+  tipo_kaggle: number
+  descricao: Latitude do local de votação (quando disponível no cadastro do TSE).
+- nome: longitude
+  tipo_kaggle: number
+  descricao: Longitude do local de votação (quando disponível no cadastro do TSE).
+- nome: urna_count
+  tipo_kaggle: integer
+  descricao: Quantidade distinta de urnas (urna_serial) observadas na seção naquele turno.
+- nome: session_final_state
+  tipo_kaggle: string
+  descricao: Estado consolidado da seção (CLOSED quando todas as sessões encerraram regularmente; INCOMPLETE caso contrário).
+- nome: all_sessions_complete
+  tipo_kaggle: boolean
+  descricao: Verdadeiro se todas as sessões de urna da seção encerraram no estado CLOSED.
+- nome: has_contingency
+  tipo_kaggle: boolean
+  descricao: Indica ocorrência de ao menos um evento de contingência na seção.
+- nome: has_clock_drift
+  tipo_kaggle: boolean
+  descricao: Indica presença de eventos com clock drift de BIOS na seção.
+- nome: has_timestamp_regression
+  tipo_kaggle: boolean
+  descricao: Indica ocorrência de regressão temporal no log da seção.
+- nome: first_event_ts
+  tipo_kaggle: datetime
+  descricao: Timestamp do primeiro evento observado na seção.
+- nome: last_event_ts
+  tipo_kaggle: datetime
+  descricao: Timestamp do último evento observado na seção.
+- nome: observed_duration_sec
+  tipo_kaggle: integer
+  descricao: Janela observada em segundos entre o primeiro e o último evento (nula quando has_clock_drift é verdadeiro para evitar distorção por relógio 1970).
+- nome: total_events
+  tipo_kaggle: integer
+  descricao: Total de eventos Silver registrados na seção e turno.
+- nome: classified_events
+  tipo_kaggle: integer
+  descricao: Total de eventos classificados pelo catálogo semântico.
+- nome: unknown_events
+  tipo_kaggle: integer
+  descricao: Total de eventos fora do catálogo (UNKNOWN_EVENT / MALFORMED_LINE).
+- nome: voter_enabled_events
+  tipo_kaggle: integer
+  descricao: Contagem de eventos VOTER_ENABLED.
+- nome: voter_cycles
+  tipo_kaggle: integer
+  descricao: Total de ciclos completos de votação (VOTER_VOTE_COMPUTED) reconstruídos na seção.
+- nome: biometric_attempt_events
+  tipo_kaggle: integer
+  descricao: Total de eventos de tentativa biométrica (BIOMETRIC_READ_ATTEMPT).
+- nome: biometric_recognized_events
+  tipo_kaggle: integer
+  descricao: Total de eventos de reconhecimento biométrico bem-sucedido (BIOMETRIC_RECOGNIZED).
+- nome: biometric_not_recognized_events
+  tipo_kaggle: integer
+  descricao: Total de eventos de falha/timeout de leitura biométrica (BIOMETRIC_NOT_RECOGNIZED).
+- nome: no_biometric_registered_events
+  tipo_kaggle: integer
+  descricao: Total de eventos de eleitor sem biometria cadastrada (NO_BIOMETRIC_REGISTERED).
+- nome: manual_enable_events
+  tipo_kaggle: integer
+  descricao: Total de habilitações manuais pelo mesário (MANUAL_ENABLE_PATH).
+- nome: inactivity_timeout_events
+  tipo_kaggle: integer
+  descricao: Total de alertas/cancelamentos por inatividade de 45s (INACTIVITY_TIMEOUT_45S).
+- nome: invalid_key_events
+  tipo_kaggle: integer
+  descricao: Total de acionamentos de tecla indevida/inválida (INVALID_KEY_PRESSED).
+- nome: biometric_recognition_rate_pct
+  tipo_kaggle: number
+  descricao: Taxa percentual de reconhecimento biométrico sobre decisões biométricas observadas (0 a 100%).
+- nome: manual_enable_rate_pct
+  tipo_kaggle: number
+  descricao: Taxa percentual de habilitações manuais em relação aos ciclos de votação observados (0 a 100%).
+- nome: qt_aptos
+  tipo_kaggle: integer
+  descricao: Quantidade oficial de eleitores aptos na seção (Boletim de Urna, cargo Presidente).
+- nome: qt_comparecimento
+  tipo_kaggle: integer
+  descricao: Comparecimento oficial registrado no Boletim de Urna (cargo Presidente).
+- nome: qt_abstencoes
+  tipo_kaggle: integer
+  descricao: Abstenções oficiais registradas no Boletim de Urna (cargo Presidente).
+- nome: qt_elei_biom_sem_habilitacao
+  tipo_kaggle: integer
+  descricao: Quantidade oficial de eleitores com biometria habilitados sem sucesso biométrico no BU.
+- nome: turnout_rate_pct
+  tipo_kaggle: number
+  descricao: Taxa percentual oficial de comparecimento (qt_comparecimento / qt_aptos * 100).
+- nome: urna_model_desc
+  tipo_kaggle: string
+  descricao: Descrição do modelo de hardware da urna eletrônica (ex. UE2020, UE2022) via fact_detalhe_votacao_secao.
+- nome: qt_eleitores_perfil
+  tipo_kaggle: integer
+  descricao: Total de eleitores no perfil sociodemográfico da seção (fact_eleitorado_perfil_secao).
+- nome: qt_eleitores_biometria
+  tipo_kaggle: integer
+  descricao: Total de eleitores com biometria cadastrada na seção.
+- nome: biometria_coverage_pct
+  tipo_kaggle: number
+  descricao: Percentual de cobertura cadastral de biometria na seção (0 a 100%).
+- nome: qt_eleitores_deficiencia
+  tipo_kaggle: integer
+  descricao: Total de eleitores com deficiência declarada na seção.
+- nome: corresp_urna_swapped
+  tipo_kaggle: boolean
+  descricao: Verdadeiro quando a urna efetivada difere da urna esperada em bridge_correspondencia_efetivada.
+- nome: corresp_divergence_type
+  tipo_kaggle: string
+  descricao: Tipo de divergência de correspondência registrado pelo TSE (quando aplicável).

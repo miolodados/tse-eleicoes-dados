@@ -29,3 +29,6 @@ colunas:
 - nome: percentage
   tipo_kaggle: number
   descricao: Proporção percentual (0 a 100%) do evento em relação ao total da UF.
+- nome: clock_drift_count
+  tipo_kaggle: integer
+  descricao: Quantidade de ocorrências do evento com sinalização de clock drift na BIOS da urna.
